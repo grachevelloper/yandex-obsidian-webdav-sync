@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { conflictPath, isIncluded, validatePath, validateRemoteFolder } from '../src/shared/paths';
+import {
+  conflictPath,
+  isIncluded,
+  validatePath,
+  validateRemoteFolder,
+} from '../../src/shared/paths';
 
 test('rejects traversal and ambiguous paths', () => {
   for (const path of ['../a', '/a', 'a//b', 'a/./b', 'a/../b', 'a\\b', 'a\0b']) {
@@ -31,4 +36,17 @@ test('conflict names preserve extensions and fit long Unicode file names', () =>
   assert.ok(path.startsWith('notes/'));
   assert.ok(path.endsWith('.png'));
   assert.ok(new TextEncoder().encode(path.split('/').at(-1)).length <= 255);
+});
+
+test('conflict names preserve normal names and use the UTF-8 byte budget', () => {
+  const hash = 'a'.repeat(64);
+  assert.equal(
+    conflictPath('notes/project-plan-for-the-next-quarter.md', hash),
+    `notes/project-plan-for-the-next-quarter.conflict-${hash}.md`,
+  );
+  const emojiName = conflictPath(`${'😀'.repeat(100)}.jpeg`, hash);
+  assert.ok(new TextEncoder().encode(emojiName).length <= 255);
+  assert.ok(emojiName.endsWith('.jpeg'));
+  const longExtension = conflictPath(`name.${'a'.repeat(250)}`, hash);
+  assert.ok(new TextEncoder().encode(longExtension).length <= 255);
 });

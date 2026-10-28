@@ -14,5 +14,7 @@ await build({
 
 await mkdir('release/yandex-disk-sync', { recursive: true });
 await Promise.all(
-  ['main.js', 'manifest.json'].map((file) => copyFile(file, `release/yandex-disk-sync/${file}`)),
+  ['main.js', 'manifest.json', 'styles.css'].map((file) =>
+    copyFile(file, `release/yandex-disk-sync/${file}`),
+  ),
 );

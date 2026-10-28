@@ -1,12 +1,8 @@
 import type { TFile, Vault } from 'obsidian';
 import { isIncluded, MAX_FILE_BYTES, parentPath, validatePath } from '../shared/paths';
-import {
-  ChangedDuringSync,
-  snapshot,
-  type FileEntry,
-  type Snapshot,
-  type SyncStore,
-} from '../sync/engine';
+import { ChangedDuringSync } from '../sync/errors';
+import { snapshot } from '../sync/snapshot';
+import type { FileEntry, Snapshot, SyncStore } from '../sync/types';
 
 export class VaultStore implements SyncStore {
   constructor(
@@ -24,7 +20,7 @@ export class VaultStore implements SyncStore {
   async read(path: string): Promise<Snapshot | undefined> {
     const file = this.findFile(path);
     if (!file) return undefined;
-    if (file.stat.size > MAX_FILE_BYTES) throw new Error('Файл превышает лимит 50 МиБ.');
+    if (file.stat.size > MAX_FILE_BYTES) throw new Error('File exceeds the 50 MiB limit.');
 
     return snapshot(await this.vault.readBinary(file));
   }
@@ -32,8 +28,8 @@ export class VaultStore implements SyncStore {
   async write(path: string, data: ArrayBuffer, expected: Snapshot | undefined): Promise<void> {
     validatePath(path);
     if (!isIncluded(path, this.vault.configDir))
-      throw new Error('Служебный файл исключён из синхронизации.');
-    if (data.byteLength > MAX_FILE_BYTES) throw new Error('Файл превышает лимит 50 МиБ.');
+      throw new Error('Configuration files are excluded from synchronization.');
+    if (data.byteLength > MAX_FILE_BYTES) throw new Error('File exceeds the 50 MiB limit.');
 
     const current = await this.read(path);
     if (current?.hash !== expected?.hash) throw new ChangedDuringSync(path);
@@ -67,11 +63,11 @@ export class VaultStore implements SyncStore {
   private findFile(path: string): TFile | undefined {
     validatePath(path);
     if (!isIncluded(path, this.vault.configDir))
-      throw new Error('Служебный файл исключён из синхронизации.');
+      throw new Error('Configuration files are excluded from synchronization.');
 
     const file = this.vault.getFileByPath(path);
     if (!file && this.vault.getAbstractFileByPath(path)) {
-      throw new Error(`Вместо файла существует папка: ${path}`);
+      throw new Error(`A folder exists instead of a file: ${path}`);
     }
     return file ?? undefined;
   }
@@ -84,7 +80,7 @@ export class VaultStore implements SyncStore {
       current = current ? `${current}/${part}` : part;
       const existing = this.vault.getAbstractFileByPath(current);
       if (existing && !('children' in existing))
-        throw new Error(`Вместо папки существует файл: ${current}`);
+        throw new Error(`A file exists instead of a folder: ${current}`);
       if (!existing) await this.vault.createFolder(current);
     }
   }

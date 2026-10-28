@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { loadPluginData, scopeFor } from '../src/settings/data';
+import { loadPluginData, scopeFor, validateSettings } from '../../src/settings/data';
 
 test('loads defaults without sharing the state map', () => {
   const first = loadPluginData(null);
@@ -31,4 +31,21 @@ test('binds the baseline to the account and folder, independent of password rota
   assert.equal(scopeFor({ ...settings, login: 'user', password: 'new' }), scope);
   assert.notEqual(scopeFor({ ...settings, folder: 'Other' }), scope);
   assert.notEqual(scopeFor({ ...settings, login: 'another' }), scope);
+});
+
+test('validates credentials before starting network requests', () => {
+  const valid = { login: ' user ', password: 'app password', folder: '/Obsidian/' };
+  assert.deepEqual(validateSettings(valid), {
+    login: 'user',
+    password: 'app password',
+    folder: 'Obsidian',
+  });
+  for (const settings of [
+    { ...valid, login: '' },
+    { ...valid, login: 'user:name' },
+    { ...valid, password: '' },
+    { ...valid, folder: '/' },
+  ]) {
+    assert.throws(() => validateSettings(settings));
+  }
 });

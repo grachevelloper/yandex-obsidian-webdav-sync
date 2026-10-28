@@ -1,5 +1,7 @@
+import { isObject } from '../shared/objects';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { validatePath } from '../shared/paths';
+import { WEBDAV_ENDPOINT } from './protocol';
 
 interface DavEntry {
   path: string;
@@ -7,13 +9,9 @@ interface DavEntry {
   directory: boolean;
 }
 
-function object(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 export function parseListing(xml: string, root: string): DavEntry[] {
   if (/<!DOCTYPE|<!ENTITY/iu.test(xml) || XMLValidator.validate(xml) !== true) {
-    throw new Error('Некорректный XML в ответе WebDAV.');
+    throw new Error('Invalid XML in the WebDAV response.');
   }
 
   const document: unknown = new XMLParser({
@@ -23,21 +21,21 @@ export function parseListing(xml: string, root: string): DavEntry[] {
     isArray: (name) => name === 'response' || name === 'propstat',
   }).parse(xml);
 
-  if (!object(document) || !object(document.multistatus)) {
-    throw new Error('Ожидался список WebDAV multistatus.');
+  if (!isObject(document) || !isObject(document.multistatus)) {
+    throw new Error('Expected a WebDAV multistatus listing.');
   }
 
   const responses: unknown = document.multistatus.response;
-  if (!Array.isArray(responses)) throw new Error('Пустой или неполный ответ WebDAV.');
+  if (!Array.isArray(responses)) throw new Error('Empty or incomplete WebDAV response.');
 
   return responses.map((item: unknown) => {
-    if (!object(item) || typeof item.href !== 'string' || !Array.isArray(item.propstat)) {
-      throw new Error('Неполное описание файла WebDAV.');
+    if (!isObject(item) || typeof item.href !== 'string' || !Array.isArray(item.propstat)) {
+      throw new Error('Incomplete WebDAV file properties.');
     }
 
-    const url = new URL(item.href, 'https://webdav.yandex.ru');
-    if (url.origin !== 'https://webdav.yandex.ru' || url.search || url.hash) {
-      throw new Error('WebDAV вернул ссылку за пределами хранилища.');
+    const url = new URL(item.href, WEBDAV_ENDPOINT);
+    if (url.origin !== WEBDAV_ENDPOINT || url.search || url.hash) {
+      throw new Error('WebDAV returned a URL outside the storage endpoint.');
     }
 
     const fullPath = url.pathname
@@ -46,32 +44,31 @@ export function parseListing(xml: string, root: string): DavEntry[] {
       .map((segment) => {
         const decoded = decodeURIComponent(segment);
         if (decoded.includes('/') || decoded.includes('\\'))
-          throw new Error('Неоднозначный путь WebDAV.');
+          throw new Error('Ambiguous WebDAV path.');
         return decoded;
       })
       .join('/');
     validatePath(fullPath);
 
     if (fullPath !== root && !fullPath.startsWith(`${root}/`)) {
-      throw new Error('WebDAV вернул файл вне выбранной папки.');
+      throw new Error('WebDAV returned a file outside the selected folder.');
     }
 
     const successful = item.propstat.find(
       (value: unknown) =>
-        object(value) &&
+        isObject(value) &&
         typeof value.status === 'string' &&
         /^HTTP\/\S+ 200(?: |$)/u.test(value.status),
     );
-    if (!object(successful) || !object(successful.prop)) {
-      throw new Error('WebDAV не разрешил прочитать свойства файла.');
+    if (!isObject(successful) || !isObject(successful.prop)) {
+      throw new Error('WebDAV did not allow reading file properties.');
     }
 
     const properties = successful.prop;
     const directory =
-      object(properties.resourcetype) && Object.hasOwn(properties.resourcetype, 'collection');
+      isObject(properties.resourcetype) && Object.hasOwn(properties.resourcetype, 'collection');
     const size = directory ? 0 : Number(properties.getcontentlength);
-    if (!Number.isSafeInteger(size) || size < 0)
-      throw new Error('Некорректный размер файла WebDAV.');
+    if (!Number.isSafeInteger(size) || size < 0) throw new Error('Invalid WebDAV file size.');
 
     return { path: fullPath === root ? '' : fullPath.slice(root.length + 1), size, directory };
   });

@@ -1,12 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import {
-  snapshot,
-  synchronize,
-  type Snapshot,
-  type SyncState,
-  type SyncStore,
-} from '../src/sync/engine';
+import { synchronize } from '../../src/sync/engine';
+import { snapshot } from '../../src/sync/snapshot';
+import type { Snapshot, SyncState, SyncStore } from '../../src/sync/types';
 
 class MemoryStore implements SyncStore {
   files = new Map<string, Snapshot>();
@@ -82,7 +78,8 @@ test('preserves both versions on both devices, including on first sync', async (
     await remote.set('note.md', 'remote edit');
     const result = await run();
 
-    assert.deepEqual(result.conflicts, ['note.md']);
+    assert.equal(result.conflicts[0]?.path, 'note.md');
+    assert.ok(result.conflicts[0]?.copyPath.includes('.conflict-'));
     assert.deepEqual(local.files, remote.files);
     assert.equal(local.files.size, 2);
     const contents = [...local.files.values()].map((value) => new TextDecoder().decode(value.data));
@@ -152,7 +149,7 @@ test('rejects file-folder collisions before transferring any files', async () =>
   const { local, remote, run } = setup();
   await local.set('folder', 'file');
   await remote.set('folder/note.md', 'note');
-  await assert.rejects(run(), /[Пп]ут/);
+  await assert.rejects(run(), /[Pp]ath/);
   assert.equal(local.files.size, 1);
   assert.equal(remote.files.size, 1);
 });
@@ -166,7 +163,7 @@ test('rejects case and Unicode aliases before writing on case-insensitive device
     assert.ok(first && second);
     await local.set(first, 'local');
     await remote.set(second, 'remote');
-    await assert.rejects(run(), /[Пп]ут/);
+    await assert.rejects(run(), /[Pp]ath/);
     assert.equal(local.files.size, 1);
     assert.equal(remote.files.size, 1);
   }

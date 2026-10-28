@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { TFile, Vault } from 'obsidian';
-import { VaultStore } from '../src/vault/store';
-import { snapshot } from '../src/sync/engine';
+import { VaultStore } from '../../src/vault/store';
+import { snapshot } from '../../src/sync/snapshot';
 
 function setup() {
   const files = new Map<string, ArrayBuffer>();
@@ -62,14 +62,14 @@ test('rejects files edited after scanning', async () => {
   const { store, files, bytes } = setup();
   const expected = await snapshot(bytes('old'));
   files.set('note.md', bytes('new local edit'));
-  await assert.rejects(store.write('note.md', bytes('remote'), expected), /изменился/);
+  await assert.rejects(store.write('note.md', bytes('remote'), expected), /changed/);
   assert.deepEqual(files.get('note.md'), bytes('new local edit'));
 });
 
 test('refuses to overwrite a file that appeared after a missing-file read', async () => {
   const { store, files, bytes } = setup();
   files.set('note.md', bytes('local'));
-  await assert.rejects(store.write('note.md', bytes('remote'), undefined), /изменился/);
+  await assert.rejects(store.write('note.md', bytes('remote'), undefined), /changed/);
 });
 
 test('backs up the replaced version outside synchronized files', async () => {

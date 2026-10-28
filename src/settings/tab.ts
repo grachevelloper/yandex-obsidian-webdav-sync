@@ -10,10 +10,10 @@ export class SyncSettingsTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl('p', {
-      text: 'Заметки и вложения передаются напрямую между этим хранилищем и выбранной папкой Яндекс Диска.',
+      text: 'Sync notes and attachments directly between this vault and a dedicated Yandex Disk folder.',
     });
 
-    new Setting(containerEl).setName('Логин Яндекса').addText((text) =>
+    new Setting(containerEl).setName('Yandex login').addText((text) =>
       text
         .setValue(this.syncPlugin.data.settings.login)
         .setDisabled(this.syncPlugin.running)
@@ -23,9 +23,9 @@ export class SyncSettingsTab extends PluginSettingTab {
     );
 
     new Setting(containerEl)
-      .setName('Пароль приложения')
+      .setName('App password')
       .setDesc(
-        'Создайте в Яндекс ID пароль типа «Файлы WebDAV». Он хранится локально в data.json плагина открытым текстом; эта папка не синхронизируется плагином.',
+        'Create a Files WebDAV app password in Yandex ID. It is stored as plain text in the local plugin data.json; this folder is excluded from sync.',
       )
       .addText((text) => {
         text.inputEl.type = 'password';
@@ -39,9 +39,9 @@ export class SyncSettingsTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName('Папка на Яндекс Диске')
+      .setName('Yandex Disk folder')
       .setDesc(
-        'Одинаковая на телефоне и компьютере. Выделите отдельную папку, например Obsidian/Personal.',
+        'Use the same dedicated folder on your phone and computer, for example Obsidian/Personal.',
       )
       .addText((text) =>
         text
@@ -53,18 +53,29 @@ export class SyncSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Запустить синхронизацию')
+      .setName('Run sync')
       .setDesc(
-        'Удаления не распространяются: отсутствующие файлы восстанавливаются с другой стороны. Конфликтные копии сохраняются рядом с оригиналом.',
+        'Missing files are restored from the other side. Both conflicting versions are preserved beside the original.',
       )
       .addButton((button) =>
         button
-          .setButtonText(this.syncPlugin.running ? 'Синхронизация…' : 'Синхронизировать')
+          .setButtonText(this.syncPlugin.running ? 'Syncing…' : 'Sync now')
           .setCta()
           .setDisabled(this.syncPlugin.running)
           .onClick(() => {
             void this.syncPlugin.runSync();
           }),
+      );
+
+    new Setting(containerEl)
+      .setName('Local sync logs')
+      .setDesc(
+        'Review the latest run, including errors and HTTP statuses. Logs stay on this device; the last 10 runs are retained.',
+      )
+      .addButton((button) =>
+        button.setButtonText('View latest log').onClick(() => {
+          void this.syncPlugin.openLatestLog();
+        }),
       );
   }
 }

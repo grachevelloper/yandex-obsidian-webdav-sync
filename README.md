@@ -1,65 +1,70 @@
 # self-obsidian-yandex-sync
 
-Личный плагин Nick Grachev для двусторонней синхронизации заметок и вложений Obsidian с Яндекс Диском через WebDAV.
+A personal-use Obsidian plugin by Nick Grachev for manual, two-way sync of notes and attachments with Yandex Disk over WebDAV.
 
-Работает внутри Obsidian. Бэкенд, отдельный сервер, серверная база данных и хостинг не нужны. Каждое устройство хранит обычное локальное хранилище заметок; плагин по кнопке обменивается файлами с выделенной папкой Диска. Между запусками Obsidian ничего не синхронизируется.
+The plugin runs inside Obsidian. No backend, database server or hosting is needed. Each device keeps a normal local vault and exchanges files with a dedicated Yandex Disk folder when you run sync. There is no background service.
 
-## Возможности
+## Features
 
-- Ручной запуск кнопкой со стрелками, командой «Синхронизировать с Яндекс Диском» или кнопкой в настройках.
-- Двусторонняя передача Markdown, изображений и других вложений с сохранением структуры папок.
-- Сравнение SHA-256 содержимого и состояния предыдущей синхронизации, без зависимости от часов устройств.
-- При конфликте облачная версия остаётся под исходным именем, локальная сохраняется рядом как `имя.conflict-<SHA-256>.расширение`. Обе версии передаются на Диск и другие устройства.
-- Удаления не распространяются. Файл, оставшийся только с одной стороны, восстанавливается с другой. Переименование пока означает появление нового файла и восстановление старого.
-- Коллизии имён файлов и папок, регистра и Unicode останавливают запуск до передачи файлов.
-- Конфликты, ошибки и пропущенные файлы отображаются в отчёте. Неудачные операции можно повторить запуском синхронизации.
+- Start sync from the ribbon button, the **Sync with Yandex Disk** command or plugin settings.
+- Exchange Markdown notes, images and other attachments while preserving folders.
+- Compare SHA-256 content hashes with the last synchronized state, independently of device clocks.
+- Preserve conflicts on both sides: the cloud version keeps the original name; the local edit becomes `name.conflict-<SHA-256>.extension` beside it. The report shows both paths. Names use the available UTF-8 filename byte budget; ordinary extensions are preserved.
+- Do not propagate deletions. A file missing on one side is restored from the other. Renaming currently creates a new file and restores the old name.
+- Stop before transfers if file/folder names collide by case or Unicode normalization.
+- Review a responsive report with upload/download totals, conflicts, skipped files and errors.
+- View local diagnostic logs from the report, plugin settings or **Open latest sync log** command. Logs survive restarts, contain file paths and HTTP statuses, and exclude passwords, authorization headers and file contents.
 
-## Сборка
+## Build
 
-Требуется Node.js 24 и npm. Только сборка и тесты используют Node.js; установленный плагин работает через API Obsidian.
+Use Node.js 24 and npm. Only development tools need Node.js; the installed plugin uses the Obsidian API.
 
 ```sh
 npm ci
 npm run check
 ```
 
-Готовые файлы находятся в `release/yandex-disk-sync/`: `main.js` и `manifest.json`. Их можно установить без сборки на самом телефоне.
+Installable files are generated in `release/yandex-disk-sync/`: `main.js`, `manifest.json` and `styles.css`. The phone does not need to build them.
 
-## Установка
+## Install
 
-1. Сначала используйте отдельное тестовое хранилище на компьютере и телефоне.
-2. Скопируйте папку `yandex-disk-sync` из `release` в `<хранилище>/.obsidian/plugins/` на каждом устройстве. Если каталог конфигурации Obsidian изменён, используйте его вместо `.obsidian`.
-3. Разрешите сторонние плагины в Obsidian, перезапустите приложение и включите **Yandex Disk Sync** в установленных плагинах. Плагин пока не опубликован в общем каталоге.
-4. В Яндекс ID создайте пароль приложения типа **Файлы WebDAV**. В настройках плагина введите логин, этот пароль и выделенную папку, например `Obsidian/Personal`. На обоих устройствах укажите одинаковую папку и аккаунт. Нужен тариф с доступом WebDAV.
-5. Нажмите синхронизацию на первом устройстве, дождитесь завершения, затем на втором. После правок повторяйте в таком же порядке. Кнопка находится в боковой ленте; на телефоне также доступна команда через палитру команд.
+1. Start with separate test vaults on your computer and phone.
+2. Copy the generated `yandex-disk-sync` folder into `<vault>/.obsidian/plugins/` on each device. If you changed the Obsidian configuration directory, use that directory instead of `.obsidian`.
+3. Allow community plugins, restart Obsidian and enable **Yandex Disk Sync** in installed plugins. This plugin is not yet listed in the public community catalog.
+4. Create a **Files WebDAV** app password in Yandex ID. In plugin settings, enter your Yandex login, that app password and a dedicated folder such as `Obsidian/Personal`. Use the same account and folder on both devices. Your plan must include WebDAV access.
+5. Run sync on the first device and wait for completion, then run it on the second. After editing, repeat this sequence. The command palette is available on mobile as well.
 
-При первом соединении разные файлы с одинаковым путём считаются конфликтом: обе версии сохраняются. Пустое новое хранилище получит файлы с Диска.
+The first sync preserves both versions when existing files share a path but differ in content. An empty new vault downloads the files from Disk.
 
-## Данные и ограничения первой версии
+## Local data and limits
 
-- Соединение идёт по HTTPS напрямую на `https://webdav.yandex.ru`. Других серверов, телеметрии и аналитики нет.
-- Логин, пароль приложения и состояние синхронизации сохраняются локально в `<каталог конфигурации>/plugins/yandex-disk-sync/data.json`. Пароль хранится открытым текстом. Этот плагин не передаёт конфигурацию на Диск; отдельные средства резервного копирования могут её копировать.
-- Скрытые файлы и папки, включая `.obsidian`, `.trash`, `.git`, и пользовательский каталог конфигурации исключены. Настройки и плагины Obsidian не синхронизируются.
-- Один файл ограничен 50 МиБ. Такие файлы пропускаются с отчётом. Плагин читает файл целиком в память; библиотека HTTP также буферизует ответ. Большие хранилища будут синхронизироваться медленно: первая версия читает содержимое файлов для сравнения при каждом запуске.
-- Удалённых перезаписей без сильного ETag нет: используется `If-Match`, а для создания — `If-None-Match: *`. Ответ об изменившемся файле останавливает операцию с ним. Необходимо проверить соблюдение этих условий настоящим Яндекс WebDAV перед использованием для важных данных.
-- Markdown обновляется через атомарный `Vault.process` с проверкой прежнего содержимого. У Obsidian нет аналогичного атомарного API для бинарных вложений: перед заменой идёт повторная проверка, но остаётся небольшое окно гонки. Не редактируйте вложения другими программами во время синхронизации.
-- Перед локальной перезаписью прежние байты сохраняются в `<каталог конфигурации>/plugins/yandex-disk-sync/recovery/<SHA-256>`. Копии не отправляются на Диск и не очищаются автоматически. Для восстановления скопируйте нужный файл из этой папки и верните исходное расширение. SHA-256 содержимого поможет сопоставить копию с файлом.
-- Ошибка сохранения состояния прекращает запуск. Сбой передачи отдельного файла отражается в отчёте; остальные файлы обрабатываются дальше. Следующий запуск повторно сравнивает содержимое.
-- Работает только при открытом Obsidian. Фоновой службы и автоматического запуска нет. Не запускайте одновременно несколько экземпляров Obsidian на одной локальной папке.
+- Requests go directly to `https://webdav.yandex.ru` over HTTPS. No other servers, telemetry or analytics are used.
+- The login, app password and sync baseline are saved in `<config>/plugins/yandex-disk-sync/data.json`. The app password is stored as plain text. This plugin excludes the configuration directory from sync; other backup tools may still copy it.
+- Hidden files and directories, including `.obsidian`, `.trash` and `.git`, and a custom configuration directory are excluded. Obsidian settings and plugins are not synchronized.
+- Files over 50 MiB are skipped and listed in the report. Files and HTTP responses are buffered in memory. Large vaults will sync slowly: this version reads file contents on each run to compare them.
+- Existing remote files are written with `If-Match` and a strong ETag; new files use `If-None-Match: *`. A changed-file response rejects that write. Verify conditional request behavior with the actual Yandex WebDAV server before using an important vault.
+- Markdown uses atomic `Vault.process` with an expected-content check. Obsidian has no equivalent atomic binary replacement API: attachments are rechecked before writing, but a small race window remains. Do not edit attachments with another program during sync.
+- Replaced local bytes are backed up to `<config>/plugins/yandex-disk-sync/recovery/<SHA-256>`. Recovery copies stay local and are not automatically removed. To restore one, copy it and restore the original extension.
+- Logs are saved under `<config>/plugins/yandex-disk-sync/logs/`. The last 10 runs and `latest.json` are retained. Each run contains at most 2,000 events; the number of omitted events is recorded. Logs may contain private file names, so review them before sharing. A run saved as `running` was interrupted before a final report could be written.
+- Sync state persistence failure stops the run. A single file transfer failure appears in the report while other files continue. Rerunning sync compares actual contents again.
+- Run sync with Obsidian open. Do not run several Obsidian instances against the same local folder.
 
-Поддержка desktop/mobile заложена через API Obsidian без Node.js и Electron в runtime. Реальные Android/iOS и Яндекс Диск требуют ручной проверки: автоматические тесты используют имитацию WebDAV и Vault.
+TODO(next verification PR): remove this temporary verification status after running the [real-device checklist](docs/manual-testing.md) against Yandex Disk and the target desktop/mobile devices. Automated tests currently use simulated WebDAV and Vault APIs; actual server behavior and device integration remain unverified.
 
-## Структура
+## Project layout
 
 ```text
 src/
-  sync/       сравнение версий и порядок безопасных операций
-  webdav/     HTTP, XML и условная запись файлов
-  vault/      доступ к локальным файлам и резервные копии
-  settings/   настройки и локальное состояние
-  ui/         отчёт синхронизации
-  shared/     проверка путей и общие ограничения
-  main.ts     регистрация плагина и запуск синхронизации
+  sync/       decisions, execution, snapshots and shared sync types
+  webdav/     HTTP client, folder traversal, XML, protocol constants and write validation
+  vault/      local file access and recovery copies
+  logging/    bounded diagnostic records and local retention
+  settings/   connection settings and local sync state
+  ui/         report and log viewer
+  shared/     path validation and object guards
+  main.ts     plugin lifecycle and sync orchestration
+tests/        mirrors source responsibilities
+scripts/      development tools
 ```
 
-Сценарии проверки на настоящих устройствах перечислены в [docs/manual-testing.md](docs/manual-testing.md).
+Use `npm test` for behavior tests, `npm run format` to format, and `npm run check` for formatting, tests, types and the plugin build.
