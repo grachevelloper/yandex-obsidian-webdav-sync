@@ -1,0 +1,25 @@
+{
+  "name": "obsidian-yandex-disk-sync",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Manual two-way Obsidian sync over Yandex Disk WebDAV",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && node esbuild.config.mjs",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "check": "npm run format:check && npm test && npm run build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.25.0",
+    "obsidian": "^1.8.7",
+    "prettier": "^3.9.10",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}
