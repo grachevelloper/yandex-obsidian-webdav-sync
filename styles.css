@@ -1,0 +1,176 @@
+.yds-modal {
+  width: min(700px, 95vw);
+}
+
+.yds-report {
+  color: var(--text-normal, #25262c);
+}
+
+.yds-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.yds-status {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-green, #26825c) 13%, transparent);
+  color: var(--color-green, #26825c);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.yds-status-attention {
+  background: color-mix(in srgb, var(--color-orange, #b86a14) 13%, transparent);
+  color: var(--color-orange, #b86a14);
+}
+
+.yds-report .yds-eyebrow {
+  margin: 0 0 5px;
+  color: var(--text-muted, #737781);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+}
+
+.yds-report .yds-title {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.yds-meta {
+  color: var(--text-muted, #737781);
+  font-size: 12px;
+  margin: 16px 0;
+}
+
+.yds-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
+  gap: 8px;
+  margin: 20px 0 24px;
+}
+
+.yds-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 16px 12px;
+  border: 1px solid var(--background-modifier-border, #e4e6eb);
+  border-radius: 12px;
+  background: var(--background-secondary, #f7f8fa);
+}
+
+.yds-stat-value {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.yds-stat-label,
+.yds-description,
+.yds-footnote {
+  color: var(--text-muted, #737781);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.yds-stat-attention .yds-stat-value {
+  color: var(--color-orange, #b86a14);
+}
+
+.yds-section,
+.yds-details {
+  margin: 20px 0;
+}
+
+.yds-report .yds-section-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.yds-description {
+  margin: 0 0 14px;
+}
+
+.yds-conflict {
+  border: 1px solid var(--background-modifier-border, #e4e6eb);
+  border-radius: 12px;
+  padding: 4px 14px;
+  margin: 10px 0;
+}
+
+.yds-version {
+  padding: 12px 0;
+}
+
+.yds-version + .yds-version {
+  border-top: 1px solid var(--background-modifier-border, #e4e6eb);
+}
+
+.yds-version-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted, #737781);
+  margin-bottom: 6px;
+}
+
+.yds-path {
+  display: block;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.yds-report .yds-path {
+  background: transparent;
+  padding: 0;
+}
+
+.yds-failure {
+  color: var(--text-error, #c53d43);
+  border-left: 3px solid currentColor;
+  padding-left: 12px;
+  overflow-wrap: anywhere;
+}
+
+.yds-issues {
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.yds-details summary {
+  cursor: pointer;
+}
+
+.yds-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--background-modifier-border, #e4e6eb);
+}
+
+.yds-log {
+  max-height: 60vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 16px;
+  border-radius: 10px;
+  font-size: 12px;
+  background: var(--background-secondary, #f7f8fa);
+}

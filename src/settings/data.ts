@@ -1,0 +1,66 @@
+import { isObject } from '../shared/objects';
+import { validateRemoteFolder } from '../shared/paths';
+import type { SyncState } from '../sync/types';
+
+export interface Settings {
+  login: string;
+  password: string;
+  folder: string;
+}
+
+export interface PluginData {
+  settings: Settings;
+  state: SyncState;
+}
+
+export function scopeFor(settings: Settings): string {
+  return JSON.stringify([settings.login.trim(), validateRemoteFolder(settings.folder)]);
+}
+
+export function emptyState(scope: string): SyncState {
+  return { version: 1, scope, hashes: Object.create(null) };
+}
+
+export function loadPluginData(value: unknown): PluginData {
+  if (value !== null && value !== undefined && !isObject(value))
+    throw new Error('Invalid saved settings.');
+
+  const settings: Settings = { login: '', password: '', folder: 'Obsidian/Personal' };
+
+  if (isObject(value) && isObject(value.settings)) {
+    for (const key of ['login', 'password', 'folder'] as const) {
+      const setting = value.settings[key];
+      if (typeof setting === 'string') settings[key] = setting;
+    }
+  }
+
+  const state = emptyState('');
+  if (isObject(value) && value.state !== undefined) {
+    const saved = value.state;
+    if (
+      !isObject(saved) ||
+      saved.version !== 1 ||
+      typeof saved.scope !== 'string' ||
+      !isObject(saved.hashes)
+    ) {
+      throw new Error('Cannot read sync state. Preserve data.json before recovery.');
+    }
+
+    state.scope = saved.scope;
+    for (const [path, hash] of Object.entries(saved.hashes)) {
+      if (typeof hash !== 'string' || !/^[a-f0-9]{64}$/u.test(hash))
+        throw new Error('Invalid sync state.');
+      state.hashes[path] = hash;
+    }
+  }
+
+  return { settings, state };
+}
+
+export function validateSettings(settings: Settings): Settings {
+  const login = settings.login.trim();
+  if (!login || !settings.password || login.includes(':')) {
+    throw new Error('Enter your Yandex login and app password in the plugin settings.');
+  }
+  return { ...settings, login, folder: validateRemoteFolder(settings.folder) };
+}
