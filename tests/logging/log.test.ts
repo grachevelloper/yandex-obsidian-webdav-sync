@@ -64,3 +64,54 @@ test('bounds in-memory diagnostic events', () => {
   assert.equal(log.data.events.length, 2000);
   assert.equal(log.data.droppedEvents, 100);
 });
+
+test('rejects malformed metadata, events and sync results when loading logs', async () => {
+  const { repository, files } = storage();
+  const valid = new SyncLog().data;
+  const invalidLogs = [
+    { ...valid, outcome: ['completed'] },
+    { ...valid, events: [{ time: valid.startedAt, level: ['info'], message: 'test' }] },
+    { ...valid, events: [null] },
+    {
+      ...valid,
+      events: [{ time: valid.startedAt, level: 'info', message: 'test', details: { status: [] } }],
+    },
+    { ...valid, finishedAt: 1 },
+    { ...valid, failure: {} },
+    {
+      ...valid,
+      result: {
+        uploaded: 0,
+        downloaded: 0,
+        conflicts: [{ path: 'note.md' }],
+        skipped: [],
+        errors: [],
+      },
+    },
+    {
+      ...valid,
+      result: { uploaded: 0, downloaded: 0, conflicts: [], skipped: [false], errors: [] },
+    },
+  ];
+
+  for (const value of invalidLogs) {
+    files.set('.obsidian/plugins/yandex-disk-sync/logs/latest.json', JSON.stringify(value));
+    await assert.rejects(repository.latest(), /Invalid sync log/);
+  }
+});
+
+test('restores completed logs including conflict paths and optional metadata', async () => {
+  const { repository } = storage();
+  const log = new SyncLog();
+  log.record('info', 'Preserved conflict', { path: 'note.md', status: 201 });
+  log.complete({
+    uploaded: 1,
+    downloaded: 1,
+    conflicts: [{ path: 'note.md', copyPath: 'copy.md' }],
+    skipped: [],
+    errors: [],
+  });
+  await repository.save(log.data);
+
+  assert.deepEqual(await repository.latest(), log.data);
+});

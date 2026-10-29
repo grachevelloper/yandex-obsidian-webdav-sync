@@ -26,26 +26,33 @@ export function isIncluded(path: string, configDir: string): boolean {
 }
 
 export function validateRemoteFolder(value: string): string {
-  return validatePath(value.trim().replace(EDGE_SLASHES, ''));
+  const folder = value.trim().replace(EDGE_SLASHES, '');
+
+  return validatePath(folder);
 }
 
 export function parentPath(path: string): string {
-  return path.slice(0, Math.max(0, path.lastIndexOf('/')));
+  const separatorIndex = path.lastIndexOf('/');
+
+  return separatorIndex < 0 ? '' : path.slice(0, separatorIndex);
 }
 
 export function conflictPath(path: string, hash: string): string {
   const parent = parentPath(path);
   const name = path.slice(parent ? parent.length + 1 : 0);
   const dot = name.lastIndexOf('.');
+
   const encoder = new TextEncoder();
   const suffix = `.conflict-${hash}`;
   const availableBytes = MAX_FILENAME_BYTES - encoder.encode(suffix).length;
+
   const candidateExtension = dot > 0 ? name.slice(dot) : '';
   const firstCharacterBytes = encoder.encode(Array.from(name)[0]).length;
   const extension =
     encoder.encode(candidateExtension).length + firstCharacterBytes <= availableBytes
       ? candidateExtension
       : '';
+
   const originalStem = extension ? name.slice(0, dot) : name;
   const stemBudget = availableBytes - encoder.encode(extension).length;
   let stem = '';
@@ -54,6 +61,7 @@ export function conflictPath(path: string, hash: string): string {
   for (const character of originalStem) {
     const size = encoder.encode(character).length;
     if (stemBytes + size > stemBudget) break;
+
     stem += character;
     stemBytes += size;
   }
@@ -67,6 +75,7 @@ export function validateFilePaths(paths: Iterable<string>): void {
 
   for (const path of files) {
     validatePath(path);
+
     const parts = path.split('/');
 
     for (let length = 1; length <= parts.length; length++) {
@@ -77,6 +86,7 @@ export function validateFilePaths(paths: Iterable<string>): void {
       if (existing && existing !== prefix) {
         throw new Error(`Path collision on case-insensitive devices: ${existing} / ${prefix}`);
       }
+
       if (length < parts.length && files.has(prefix)) {
         throw new Error(`Path is used as both a file and a folder: ${prefix}`);
       }
