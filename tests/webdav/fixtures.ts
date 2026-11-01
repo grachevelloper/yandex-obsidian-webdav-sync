@@ -1,3 +1,4 @@
+import { clock } from './timing';
 import assert from 'node:assert/strict';
 import { WebDavStore } from '../../src/webdav/store';
 import type { HttpRequest, HttpResponse } from '../../src/webdav/client';
@@ -21,6 +22,8 @@ export function client(replies: HttpResponse[]) {
       return reply;
     },
     () => true,
+    undefined,
+    { timing: clock() },
   );
   return { store, requests };
 }

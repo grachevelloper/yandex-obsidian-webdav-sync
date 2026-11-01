@@ -1,6 +1,6 @@
 {
-  "name": "obsidian-yandex-disk-sync",
-  "version": "0.1.0",
+  "name": "grachevelopers-webdav-sync",
+  "version": "0.1.3",
   "private": true,
   "description": "Manual two-way Obsidian sync over Yandex Disk WebDAV",
   "type": "module",

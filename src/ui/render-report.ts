@@ -29,7 +29,7 @@ export function renderReport(container: HTMLElement, log: RunLog, openLog: () =>
   );
   const heading = create('div', 'yds-heading');
   heading.append(
-    create('p', 'yds-eyebrow', 'YANDEX DISK SYNC'),
+    create('p', 'yds-eyebrow', 'GRACHEVELOPER’S WEBDAV SYNC'),
     create('h2', 'yds-title', headline),
   );
   header.append(heading);
@@ -107,6 +107,7 @@ export function renderReport(container: HTMLElement, log: RunLog, openLog: () =>
 }
 
 function reportHeadline(log: RunLog, needsAttention: boolean): string {
+  if (log.outcome === 'cancelled') return 'Sync cancelled';
   if (log.outcome === 'failed') return 'Sync stopped';
   if (needsAttention) return 'A few things to review';
   if (log.result && log.result.uploaded + log.result.downloaded === 0)

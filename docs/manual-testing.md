@@ -20,3 +20,22 @@ Use a dedicated Disk folder and two test vaults. The user connects using their o
 - Verify that only the last 10 run logs are retained and that the report is usable on mobile and with both Obsidian themes.
 - Confirm that configuration, credentials, baseline, recovery and logs never appear on Disk. Repeat with a custom configuration directory.
 - Install and run from the button and command on the actual phone. Closing the app must not imply background synchronization.
+
+## Preview and confirmation
+
+- Prepare uploads, downloads and a conflict. Run sync and confirm that both device and Disk contents remain unchanged until **Confirm sync**. The preview must show the direction and exact conflict-copy path.
+- Cancel with the button, close icon and Escape (desktop). No files, remote folders or sync baseline should change; local diagnostic logs may be written.
+- Preview a folder that does not yet exist on Disk. Cancel and confirm it remains absent. Confirm a second preview and check that uploads create the folder only after confirmation.
+- Edit the upload source, download destination or cloud version while the preview is open. Confirmation must not overwrite these new edits; the report must request a new preview.
+- Add another file after preview. It must wait until the next run.
+- Make one file inaccessible during preview. Confirmation must be disabled and the error visible.
+- Repeat unchanged files, a missing file, an oversized attachment and empty vaults. No deletion action should appear.
+- Verify the preview in light/dark themes and on the actual phone; long file names and conflict paths must remain readable.
+
+## Request limits
+
+- Open settings from an existing installation without the new fields. Confirm the defaults are 2 concurrent requests and a 1-second interval. Change each independently, restart Obsidian and confirm persistence.
+- Try 1 request, then 2, against a disposable test vault with slow files. Verify overlap only in the second case; check request-start times in local diagnostics against the chosen interval.
+- Confirm both settings are disabled during preview and confirmed transfers. Invalid intervals must not replace the last valid value.
+- Preview and confirm simultaneous downloads into a new shared folder, uploads into a new cloud folder and a conflict beside a copy from an interrupted run. No duplicate-folder errors or extra conflict copies should appear.
+- Trigger HTTP 429 and verify the shared cooldown delays all new requests, including retries. A terminal failure must not leave file workers running after the final report.

@@ -12,7 +12,7 @@ export interface RunLog {
   id: string;
   startedAt: string;
   finishedAt?: string;
-  outcome: 'running' | 'completed' | 'partial' | 'failed';
+  outcome: 'running' | 'completed' | 'partial' | 'failed' | 'cancelled';
   events: LogEvent[];
   droppedEvents: number;
   result?: SyncResult;
@@ -48,6 +48,12 @@ export class SyncLog {
   complete(result: SyncResult): void {
     this.data.result = result;
     this.data.outcome = result.errors.length || result.skipped.length ? 'partial' : 'completed';
+    this.data.finishedAt = new Date().toISOString();
+  }
+
+  cancel(): void {
+    this.record('info', 'Sync preview cancelled; no files transferred');
+    this.data.outcome = 'cancelled';
     this.data.finishedAt = new Date().toISOString();
   }
 

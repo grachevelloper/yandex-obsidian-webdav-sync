@@ -26,7 +26,12 @@ test('restores saved hashes and credentials while rejecting damaged state', () =
 });
 
 test('binds the baseline to the account and folder, independent of password rotation', () => {
-  const settings = { login: ' user ', password: 'old', folder: '/Obsidian/Personal/' };
+  const settings = {
+    ...loadPluginData(null).settings,
+    login: ' user ',
+    password: 'old',
+    folder: '/Obsidian/Personal/',
+  };
   const scope = scopeFor(settings);
   assert.equal(scopeFor({ ...settings, login: 'user', password: 'new' }), scope);
   assert.notEqual(scopeFor({ ...settings, folder: 'Other' }), scope);
@@ -34,11 +39,18 @@ test('binds the baseline to the account and folder, independent of password rota
 });
 
 test('validates credentials before starting network requests', () => {
-  const valid = { login: ' user ', password: 'app password', folder: '/Obsidian/' };
+  const valid = {
+    ...loadPluginData(null).settings,
+    login: ' user ',
+    password: 'app password',
+    folder: '/Obsidian/',
+  };
   assert.deepEqual(validateSettings(valid), {
     login: 'user',
     password: 'app password',
     folder: 'Obsidian',
+    concurrentRequests: 2,
+    requestIntervalMs: 1000,
   });
   for (const settings of [
     { ...valid, login: '' },
@@ -47,5 +59,32 @@ test('validates credentials before starting network requests', () => {
     { ...valid, folder: '/' },
   ]) {
     assert.throws(() => validateSettings(settings));
+  }
+});
+
+test('restores independent request limits and supplies defaults for existing installations', () => {
+  const defaults = loadPluginData({ settings: { login: 'old-user' } }).settings;
+  assert.equal(defaults.concurrentRequests, 2);
+  assert.equal(defaults.requestIntervalMs, 1000);
+  const saved = loadPluginData({
+    settings: { concurrentRequests: 4, requestIntervalMs: 2500 },
+  }).settings;
+  assert.equal(saved.concurrentRequests, 4);
+  assert.equal(saved.requestIntervalMs, 2500);
+  assert.equal(
+    scopeFor(saved),
+    scopeFor({ ...saved, concurrentRequests: 1, requestIntervalMs: 100 }),
+  );
+  for (const value of [0, -1, 9, 1.5, '2', null]) {
+    assert.equal(
+      loadPluginData({ settings: { concurrentRequests: value } }).settings.concurrentRequests,
+      2,
+    );
+  }
+  for (const value of [0, -100, 60001, 100.5, '1000', null]) {
+    assert.equal(
+      loadPluginData({ settings: { requestIntervalMs: value } }).settings.requestIntervalMs,
+      1000,
+    );
   }
 });

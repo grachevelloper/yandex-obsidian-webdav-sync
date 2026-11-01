@@ -23,6 +23,8 @@ function setup() {
       files.set(entry.path, data);
     },
     createFolder: async (path: string) => {
+      await Promise.resolve();
+      assert.equal(folders.has(path), false, 'Obsidian rejects duplicate folder creation');
       folders.add(path);
     },
     process: async (entry: TFile, transform: (content: string) => string) => {
@@ -34,6 +36,8 @@ function setup() {
     adapter: {
       exists: async (path: string) => folders.has(path) || files.has(path),
       mkdir: async (path: string) => {
+        await Promise.resolve();
+        assert.equal(folders.has(path), false, 'Adapter rejects duplicate directory creation');
         folders.add(path);
       },
       writeBinary: async (path: string, data: ArrayBuffer) => {
@@ -87,5 +91,36 @@ test('backs up the replaced version outside synchronized files', async () => {
   assert.deepEqual(
     (await store.list()).map((file) => file.path),
     ['note.md'],
+  );
+});
+
+test('creates shared parent folders once when downloading two files concurrently', async () => {
+  const { store, files, bytes } = setup();
+  await Promise.all([
+    store.write('notes/nested/a.md', bytes('a'), undefined),
+    store.write('notes/nested/b.md', bytes('b'), undefined),
+  ]);
+  assert.deepEqual(files.get('notes/nested/a.md'), bytes('a'));
+  assert.deepEqual(files.get('notes/nested/b.md'), bytes('b'));
+});
+
+test('shares recovery-folder creation during concurrent local replacements', async () => {
+  const { store, files, bytes } = setup();
+  files.set('a.md', bytes('old a'));
+  files.set('b.md', bytes('old b'));
+  const first = await store.read('a.md');
+  const second = await store.read('b.md');
+  assert.ok(first && second);
+  await Promise.all([
+    store.write('a.md', bytes('new a'), first),
+    store.write('b.md', bytes('new b'), second),
+  ]);
+  assert.deepEqual(
+    files.get(`.obsidian/plugins/yandex-disk-sync/recovery/${first.hash}`),
+    bytes('old a'),
+  );
+  assert.deepEqual(
+    files.get(`.obsidian/plugins/yandex-disk-sync/recovery/${second.hash}`),
+    bytes('old b'),
   );
 });

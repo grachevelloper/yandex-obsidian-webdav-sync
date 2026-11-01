@@ -1,3 +1,4 @@
+import { clock } from './timing';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { WebDavStore } from '../../src/webdav/store';
@@ -21,7 +22,7 @@ test('lists nested folders while excluding service directories', async () => {
     listing(`${base}/notes/`, '<d:collection/>'),
     listing(`${base}/notes/a.md`),
   );
-  const replies = [response(405), response(405), response(207, root), response(207, notes)];
+  const replies = [response(207, root), response(207, notes)];
   const requests: HttpRequest[] = [];
   const store = new WebDavStore(
     { login: 'user', password: 'secret', folder: 'Obsidian/Тест' },
@@ -32,6 +33,8 @@ test('lists nested folders while excluding service directories', async () => {
       return reply;
     },
     (path) => !path.split('/').some((part) => part.startsWith('.')),
+    undefined,
+    { timing: clock() },
   );
 
   assert.deepEqual(await store.list(), [{ path: 'notes/a.md', size: 4 }]);
@@ -50,12 +53,53 @@ test('rejects incomplete or incorrectly nested folder responses', async () => {
       ),
     ),
   ]) {
-    const { store } = client([response(405), response(405), response(207, xml)]);
+    const { store } = client([response(207, xml)]);
     await assert.rejects(store.list(), /folder/);
   }
 });
 
 test('does not turn an inaccessible listing into an empty vault', async () => {
-  const { store } = client([response(405), response(405), response(403)]);
+  const { store } = client([response(403)]);
   await assert.rejects(store.list(), /403/);
+});
+
+test('listing is read-only even if the selected remote folder does not exist', async () => {
+  const { store, requests } = client([response(404)]);
+  assert.deepEqual(await store.list(), []);
+  assert.deepEqual(
+    requests.map(({ method }) => method),
+    ['PROPFIND'],
+  );
+});
+
+test('rejects a nested folder that disappears instead of accepting an incomplete preview', async () => {
+  const base = '/Obsidian/%D0%A2%D0%B5%D1%81%D1%82';
+  const root =
+    listing(base, '<d:collection/>').replace('</d:multistatus>', '') +
+    listing(`${base}/notes/`, '<d:collection/>').split('<d:multistatus xmlns:d="DAV:">')[1];
+  const { store, requests } = client([response(207, root), response(404)]);
+  await assert.rejects(store.list(), /404/);
+  assert.ok(requests.every(({ method }) => method === 'PROPFIND'));
+});
+
+test('shares parent creation across concurrent uploads instead of duplicating MKCOL requests', async () => {
+  const requests: HttpRequest[] = [];
+  const store = new WebDavStore(
+    { login: 'user', password: 'secret', folder: 'Obsidian/Personal' },
+    async (request) => {
+      requests.push(request);
+      await Promise.resolve();
+      return response(request.method === 'MKCOL' ? 405 : 201);
+    },
+    () => true,
+    undefined,
+    { timing: clock(), concurrentRequests: 2 },
+  );
+  await Promise.all(
+    ['notes/a.md', 'notes/b.md'].map((path) => store.write(path, new ArrayBuffer(0), undefined)),
+  );
+  const folders = requests.filter(({ method }) => method === 'MKCOL');
+  assert.equal(folders.length, 3);
+  assert.equal(new Set(folders.map(({ url }) => url)).size, 3);
+  assert.equal(requests.filter(({ method }) => method === 'PUT').length, 2);
 });
