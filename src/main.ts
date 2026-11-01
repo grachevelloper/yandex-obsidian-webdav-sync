@@ -14,8 +14,7 @@ import { SyncSettingsTab } from './settings/tab';
 import { executePlan } from './sync/engine';
 import { planSync } from './sync/plan';
 import { LogViewer } from './ui/log-viewer';
-import { confirmSyncPlan } from './ui/preview';
-import { SyncReport } from './ui/report';
+import { SyncWindow } from './ui/sync-window';
 import { VaultStore } from './vault/store';
 import { WebDavStore } from './webdav/store';
 
@@ -25,6 +24,7 @@ export default class WebDavSync extends Plugin {
   private settingsTab?: SyncSettingsTab;
   private status?: HTMLElement;
   private logs?: LogRepository;
+  private syncWindow?: SyncWindow;
   private ready = false;
   private previewController?: AbortController;
   private saveQueue: Promise<void> = Promise.resolve();
@@ -54,6 +54,12 @@ export default class WebDavSync extends Plugin {
     this.addSettingTab(this.settingsTab);
     this.status = this.addStatusBarItem();
     this.status.setText('Yandex Disk: ready');
+    this.registerDomEvent(this.status, 'click', () => this.syncWindow?.show());
+    this.addCommand({
+      id: 'view-sync-progress',
+      name: 'View sync progress or last report',
+      callback: () => this.syncWindow?.show(),
+    });
     this.addRibbonIcon('refresh-cw', 'Preview sync with Yandex Disk', () => {
       void this.runSync();
     });
@@ -69,6 +75,7 @@ export default class WebDavSync extends Plugin {
   onunload(): void {
     this.ready = false;
     this.previewController?.abort();
+    this.syncWindow?.close();
   }
 
   async updateSettings(patch: Partial<Settings>): Promise<void> {
@@ -82,23 +89,30 @@ export default class WebDavSync extends Plugin {
   }
 
   async runSync(): Promise<void> {
-    if (this.running || !this.ready || !this.logs) return;
+    if (this.running) {
+      this.syncWindow?.show();
+      return;
+    }
+    if (!this.ready || !this.logs) return;
     this.running = true;
     const controller = new AbortController();
     this.previewController = controller;
     this.settingsTab?.display();
-    const notice = new Notice('WebDAV: preparing a read-only preview…', 0);
     const log = new SyncLog();
+    this.syncWindow?.close();
+    const window = new SyncWindow(this.app, log.data, `${this.logs.folder}/${log.data.id}.json`);
+    this.syncWindow = window;
+    window.show();
     log.record('info', 'Starting manual sync', { pluginVersion: this.manifest.version });
 
     try {
       await this.logs.save(log.data);
-      await this.performSync(log, notice, controller.signal);
+      await this.performSync(log, window, controller.signal);
     } catch (error) {
       log.fail(error instanceof Error ? error.message : 'Unknown error.');
     } finally {
-      await this.saveLog(log);
-      notice.hide();
+      const warning = await this.saveLog(log);
+      window.finish(warning);
       this.running = false;
       this.previewController = undefined;
       this.status?.setText(
@@ -107,9 +121,6 @@ export default class WebDavSync extends Plugin {
           : 'Yandex Disk: ready',
       );
       this.settingsTab?.display();
-      if (this.ready && log.data.outcome !== 'cancelled') {
-        new SyncReport(this.app, log.data, `${this.logs.folder}/${log.data.id}.json`).open();
-      }
     }
   }
 
@@ -129,7 +140,7 @@ export default class WebDavSync extends Plugin {
     }
   }
 
-  private async performSync(log: SyncLog, notice: Notice, signal: AbortSignal): Promise<void> {
+  private async performSync(log: SyncLog, window: SyncWindow, signal: AbortSignal): Promise<void> {
     await this.saveQueue;
     const settings = validateSettings(this.data.settings);
     const scope = scopeFor(settings);
@@ -156,21 +167,27 @@ export default class WebDavSync extends Plugin {
       {
         concurrentRequests: settings.concurrentRequests,
         requestIntervalMs: settings.requestIntervalMs,
+        onRequest: (method, path) => window.requestStarted(method, path),
+        onRetry: (retry) => window.waiting(retry),
       },
     );
     const plan = await planSync(
       local,
       remote,
       state,
-      (path) => {
-        this.status?.setText(`WebDAV preview: ${path}`);
+      (progress) => {
+        window.update(progress);
+        this.status?.setText(
+          progress.total === undefined
+            ? 'WebDAV: listing folders…'
+            : `WebDAV check: ${progress.processed} / ${progress.total}`,
+        );
       },
       log.record,
       settings.concurrentRequests,
     );
-    notice.hide();
     this.status?.setText('WebDAV: awaiting confirmation');
-    if (!(await confirmSyncPlan(this.app, plan, signal))) {
+    if (!(await window.confirm(plan, signal))) {
       log.cancel();
       return;
     }
@@ -184,8 +201,9 @@ export default class WebDavSync extends Plugin {
       state,
       plan,
       () => this.persist(),
-      (path) => {
-        this.status?.setText(`Yandex Disk: ${path}`);
+      (progress) => {
+        window.update(progress);
+        this.status?.setText(`WebDAV sync: ${progress.processed} / ${progress.total}`);
       },
       log.record,
       settings.concurrentRequests,
@@ -193,14 +211,11 @@ export default class WebDavSync extends Plugin {
     log.complete(result);
   }
 
-  private async saveLog(log: SyncLog): Promise<void> {
+  private async saveLog(log: SyncLog): Promise<string | undefined> {
     try {
       await this.logs?.save(log.data);
     } catch {
-      new Notice(
-        'Could not save the local sync log. Check available storage. The current report is still available.',
-        10000,
-      );
+      return 'Could not save the local sync log. Check available storage. The current report is still available.';
     }
   }
 
