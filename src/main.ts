@@ -69,7 +69,7 @@ export default class WebDavSync extends Plugin {
         t('Could not load plugin settings or sync state. Preserve data.json before recovery.'),
       );
       await this.saveLog(log);
-      new Notice(`Yandex Disk WebDAV Sync: ${log.data.failure}`, 15000);
+      new Notice(`WebDAV Sync for Yandex Disk: ${log.data.failure}`, 15000);
       return;
     }
 
@@ -127,7 +127,9 @@ export default class WebDavSync extends Plugin {
         this.data.settings.language = previousLanguage;
         this.settingsTab?.display();
       }
-      new Notice(t('Could not save Yandex Disk WebDAV Sync settings. Check available storage.'));
+      new Notice(
+        t('Could not save WebDAV Sync for Yandex Disk settings. Check available storage.'),
+      );
     }
   }
 

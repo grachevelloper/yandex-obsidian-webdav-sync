@@ -13,8 +13,8 @@ export const russian = {
   'Yandex Disk: ready': 'Яндекс Диск: готово',
   'View sync progress or last report': 'Показать ход синхронизации или последний отчёт',
   'Preview sync with Yandex Disk': 'Предпросмотр синхронизации с Яндекс Диском',
-  'Could not save Yandex Disk WebDAV Sync settings. Check available storage.':
-    'Не удалось сохранить настройки Yandex Disk WebDAV Sync. Проверьте свободное место.',
+  'Could not save WebDAV Sync for Yandex Disk settings. Check available storage.':
+    'Не удалось сохранить настройки WebDAV Sync for Yandex Disk. Проверьте свободное место.',
   'Checking connection…': 'Проверка подключения…',
   'Connected. Login, app password and folder access are valid. No files were changed.':
     'Подключено. Логин, пароль приложения и доступ к папке верны. Файлы не изменялись.',
