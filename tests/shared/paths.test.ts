@@ -30,6 +30,7 @@ test('excludes hidden directories and a custom Obsidian configuration directory'
 test('protects the legacy plugin and log folders without excluding similarly named notes', () => {
   for (const path of [
     'plugins/yandex-disk-sync',
+    'plugins/webdav-sync-for-yandex-disk/main.js',
     'Plugins/Yandex-Disk-Sync/main.js',
     'Sync Engine Logs/run.md',
     'WebDAV Sync Logs/run.md',
