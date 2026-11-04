@@ -13,7 +13,7 @@ Sync your Obsidian notes and attachments with Yandex Disk. Preview every change 
 
 ## Get started
 
-1. Download the [release files](https://github.com/grachevelloper/yandex-obsidian-webdav-sync/releases) and place them in `<vault>/.obsidian/plugins/yandex-disk-sync/`. Restart Obsidian and enable the plugin.
+1. Download the [release files](https://github.com/grachevelloper/yandex-obsidian-webdav-sync/releases) and place them in `<vault>/.obsidian/plugins/webdav-sync-for-yandex-disk/`. Restart Obsidian and enable the plugin.
 2. Enter your Yandex login, a Files WebDAV app password, and a dedicated Disk folder. Select **Test connection**.
 3. Select **Preview sync**, choose a mode, review the changes, and confirm.
 

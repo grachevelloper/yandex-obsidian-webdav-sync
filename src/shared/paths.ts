@@ -29,9 +29,12 @@ export function isIncluded(path: string, configDir: string): boolean {
 export function isMirrorServicePath(path: string): boolean {
   const normalized = path.toLowerCase();
 
-  return ['plugins/yandex-disk-sync', 'sync engine logs', 'webdav sync logs'].some(
-    (folder) => normalized === folder || normalized.startsWith(`${folder}/`),
-  );
+  return [
+    'plugins/yandex-disk-sync',
+    'plugins/webdav-sync-for-yandex-disk',
+    'sync engine logs',
+    'webdav sync logs',
+  ].some((folder) => normalized === folder || normalized.startsWith(`${folder}/`));
 }
 
 export function validateRemoteFolder(value: string): string {

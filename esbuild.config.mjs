@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { copyFile, mkdir } from 'node:fs/promises';
+import { copyFile, mkdir, readFile } from 'node:fs/promises';
 
 await build({
   entryPoints: ['src/main.ts'],
@@ -12,9 +12,11 @@ await build({
   sourcemap: false,
 });
 
-await mkdir('release/yandex-disk-sync', { recursive: true });
+const { id } = JSON.parse(await readFile('manifest.json', 'utf8'));
+const releaseFolder = `release/${id}`;
+await mkdir(releaseFolder, { recursive: true });
 await Promise.all(
   ['main.js', 'manifest.json', 'styles.css'].map((file) =>
-    copyFile(file, `release/yandex-disk-sync/${file}`),
+    copyFile(file, `${releaseFolder}/${file}`),
   ),
 );
