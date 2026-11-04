@@ -1,10 +1,13 @@
+import { t } from '../i18n';
+import { SyncCancelled } from './errors';
+
 export async function runConcurrent<T>(
   items: readonly T[],
   concurrency: number,
   process: (item: T, index: number, checkActive: () => void) => Promise<void>,
 ): Promise<void> {
   if (!Number.isInteger(concurrency) || concurrency < 1)
-    throw new Error('Invalid concurrency limit.');
+    throw new Error(t('Invalid concurrency limit.'));
   const iterator = items.entries();
   let failed = false;
   let failure: unknown;
@@ -20,7 +23,7 @@ export async function runConcurrent<T>(
       try {
         await process(item, index, checkActive);
       } catch (error) {
-        if (!failed) {
+        if (!failed || (failure instanceof SyncCancelled && !(error instanceof SyncCancelled))) {
           failed = true;
           failure = error;
         }

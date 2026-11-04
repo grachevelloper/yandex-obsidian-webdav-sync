@@ -105,3 +105,32 @@ test('displays retry countdowns in the window and clears them when a request sta
     window.close();
   }
 });
+
+test('stop remains visible after reopening progress and reports waiting for active requests', () => {
+  const dom = new JSDOM();
+  let stopped = 0;
+  const window = new SyncWindow(
+    { document: dom.window.document },
+    new SyncLog().data,
+    'local-log.json',
+    () => {
+      stopped++;
+    },
+  );
+  try {
+    window.show();
+    window.close();
+    window.show();
+    const stop = [...window.contentEl.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Stop sync',
+    );
+    assert.ok(stop);
+    stop.click();
+    stop.click();
+    assert.equal(stopped, 1);
+    assert.match(window.contentEl.textContent, /Stopping/);
+    assert.match(window.contentEl.textContent, /in-flight/i);
+  } finally {
+    window.close();
+  }
+});

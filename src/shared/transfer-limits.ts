@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 export interface TransferLimits {
   concurrentRequests: number;
   requestIntervalMs: number;
@@ -25,9 +26,11 @@ export function isRequestIntervalMs(value: unknown): value is number {
 
 export function validateTransferLimits(limits: TransferLimits): void {
   if (!isConcurrentRequests(limits.concurrentRequests))
-    throw new Error(`Concurrent requests must be an integer from 1 to ${MAX_CONCURRENT_REQUESTS}.`);
+    throw new Error(
+      t('Concurrent requests must be an integer from 1 to {0}.', { '0': MAX_CONCURRENT_REQUESTS }),
+    );
   if (!isRequestIntervalMs(limits.requestIntervalMs))
     throw new Error(
-      'Request start interval must be between 0.1 and 60 seconds, in whole milliseconds.',
+      t('Request start interval must be between 0.1 and 60 seconds, in whole milliseconds.'),
     );
 }

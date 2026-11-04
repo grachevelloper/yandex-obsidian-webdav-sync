@@ -1,7 +1,13 @@
+import { t } from '../i18n';
+
 import type { PlanEntry, SyncPlan } from '../sync/types';
 import { fileTree, type FileFolder } from './file-tree';
 
-export function renderPreview(container: HTMLElement, plan: SyncPlan) {
+export function renderPreview(
+  container: HTMLElement,
+  plan: SyncPlan,
+  openFile?: (entry: PlanEntry) => void,
+) {
   const document = container.ownerDocument;
   const create = <K extends keyof HTMLElementTagNameMap>(
     tag: K,
@@ -16,36 +22,60 @@ export function renderPreview(container: HTMLElement, plan: SyncPlan) {
 
   container.replaceChildren();
   container.classList.add('yds-preview');
-  const errors = plan.entries.filter(({ action }) => action === 'error').length;
-  const changes = plan.entries.filter(
-    ({ action }) => action === 'upload' || action === 'download' || action === 'conflict',
+  const errors = plan.entries.filter(
+    ({ action, resolution }) => action === 'error' && resolution?.kind !== 'skip',
+  ).length;
+  const changes = plan.entries
+    .filter((entry) => entry.resolution?.kind !== 'skip')
+    .filter(
+      ({ action, resolution }) =>
+        action === 'upload' ||
+        action === 'download' ||
+        action === 'conflict' ||
+        action === 'delete-local' ||
+        action === 'delete-remote' ||
+        !!resolution,
+    ).length;
+  const unresolved = plan.entries.filter(
+    (entry) => entry.action === 'conflict' && !entry.resolution,
+  ).length;
+  const deletions = plan.entries.filter(
+    (entry) =>
+      !entry.resolution && (entry.action === 'delete-local' || entry.action === 'delete-remote'),
+  ).length;
+  const reviewedDeletions = plan.entries.filter(
+    (entry) => entry.resolution?.kind === 'delete',
   ).length;
   const inactive = plan.entries.filter(
-    ({ action }) => action === 'unchanged' || action === 'missing',
+    ({ action, resolution }) => !resolution && (action === 'unchanged' || action === 'missing'),
   ).length;
   const toolbar = create('div', 'yds-preview-toolbar');
   toolbar.append(
     create(
       'span',
       '',
-      `${plan.entries.length} files total · ${changes} changes${errors ? ` · ${errors} errors` : ''}`,
+      t('{0} files total · {1} changes{2}', {
+        '0': plan.entries.length,
+        '1': changes,
+        '2': errors ? t(' · {0} errors', { '0': errors }) : '',
+      }),
     ),
   );
   const showUnchanged = create('input', '');
   showUnchanged.type = 'checkbox';
   if (inactive) {
     const label = create('label', 'yds-preview-filter');
-    label.append(showUnchanged, create('span', '', `Show unchanged (${inactive})`));
+    label.append(showUnchanged, create('span', '', t('Show unchanged ({0})', { '0': inactive })));
     toolbar.append(label);
   }
   container.append(toolbar);
 
   const list = create('div', 'yds-preview-list');
   const table = create('table', 'yds-preview-table');
-  table.setAttribute('aria-label', 'Files in the sync preview');
+  table.setAttribute('aria-label', t('Files in the sync preview'));
   const header = create('thead', '');
   const columns = create('tr', '');
-  for (const title of ['File', 'Action']) {
+  for (const title of [t('File'), t('Action')]) {
     const cell = create('th', '', title);
     cell.scope = 'col';
     columns.append(cell);
@@ -105,15 +135,30 @@ export function renderPreview(container: HTMLElement, plan: SyncPlan) {
       }
 
       for (const entry of [...parent.files].sort((a, b) => a.path.localeCompare(b.path))) {
-        const row = create('tr', `yds-preview-file yds-action-${entry.action}`);
+        const row = create(
+          'tr',
+          `yds-preview-file yds-action-${entry.resolution?.kind === 'delete' ? 'delete-local' : entry.action}`,
+        );
         row.style.setProperty('--yds-depth', String(Math.min(depth, 6)));
         const name = create('td', 'yds-preview-file-cell');
-        const filename = create('span', 'yds-preview-name', entry.path.split('/').at(-1));
+        const filename = create(
+          openFile ? 'button' : 'span',
+          'yds-preview-name',
+          entry.path.split('/').at(-1),
+        );
+        if (openFile) {
+          filename.classList.add('yds-preview-open');
+          filename.setAttribute('type', 'button');
+          filename.addEventListener('click', () => openFile(entry));
+        }
         filename.title = entry.path;
         name.append(filename);
-        if (entry.copyPath) {
+        if (entry.copyPath && !entry.resolution && !plan.mode) {
           const copy = create('details', 'yds-preview-copy');
-          copy.append(create('summary', '', 'Conflict copy'), create('code', '', entry.copyPath));
+          copy.append(
+            create('summary', '', t('Conflict copy')),
+            create('code', '', entry.copyPath),
+          );
           name.append(copy);
         }
         if (entry.message) name.append(create('span', 'yds-preview-message', entry.message));
@@ -128,7 +173,7 @@ export function renderPreview(container: HTMLElement, plan: SyncPlan) {
     appendFolder(fileTree(entries), [], 0);
     if (!entries.length) {
       const row = create('tr', '');
-      const cell = create('td', 'yds-preview-empty', 'No file changes');
+      const cell = create('td', 'yds-preview-empty', t('No file changes'));
       cell.colSpan = 2;
       row.append(cell);
       body.append(row);
@@ -143,51 +188,111 @@ export function renderPreview(container: HTMLElement, plan: SyncPlan) {
       create(
         'p',
         'yds-preview-warning',
-        'Confirmation is disabled. Resolve the errors and prepare a new preview.',
+        t('Confirmation is disabled. Resolve the errors and prepare a new preview.'),
       ),
     );
-  container.append(
-    create('p', 'yds-preview-hint', '↑ Yandex Disk · ↓ This device · No files will be deleted.'),
+  const mirror = plan.mode === 'device-wins' || plan.mode === 'cloud-wins';
+  const reviewed = plan.entries.some(
+    (entry) => entry.resolution && entry.resolution.kind !== 'skip',
   );
+  const direction =
+    plan.mode === 'device-wins'
+      ? t('Device → Disk · ') + deletions + t(' cloud files will be deleted.')
+      : t('Disk → device · ') + deletions + t(' local files will be deleted.');
+  container.append(
+    create(
+      'p',
+      'yds-preview-hint',
+      mirror
+        ? direction +
+            ' ' +
+            (reviewed
+              ? t('Reviewed files are saved on both sides; the source may change.')
+              : t('The source stays unchanged.'))
+        : reviewedDeletions
+          ? t('↑ Yandex Disk · ↓ This device')
+          : t('↑ Yandex Disk · ↓ This device · No files will be deleted.'),
+    ),
+  );
+  if (reviewedDeletions)
+    container.append(
+      create(
+        'p',
+        'yds-preview-warning',
+        t('Files marked for deletion from both sides: {0}', { '0': reviewedDeletions }),
+      ),
+    );
+  if (
+    plan.mode &&
+    plan.mode !== 'two-way' &&
+    plan.entries.some((entry) => entry.resolution?.kind === 'skip')
+  )
+    container.append(
+      create(
+        'p',
+        'yds-preview-warning',
+        t('Skipped files are excluded. The destination will not be an exact copy.'),
+      ),
+    );
   const actions = create('div', 'yds-preview-actions');
   container.append(actions);
 
-  return { actions, canConfirm: errors === 0, changes };
+  return { actions, canConfirm: errors === 0 && unresolved === 0, changes, unresolved };
 }
 
 function actionLabel(entry: PlanEntry): string {
+  if (entry.resolution?.kind === 'delete') return t('Delete from both sides');
+  if (entry.resolution?.kind === 'skip') return t('Skipped');
+  if (entry.resolution && entry.action !== 'conflict') return t('⇄ Reviewed');
   switch (entry.action) {
     case 'upload':
-      return entry.baseline && !entry.remoteHash ? '↑ Restore' : '↑ Upload';
+      return entry.baseline && !entry.remoteHash ? t('↑ Restore') : t('↑ Upload');
     case 'download':
-      return entry.baseline && !entry.localHash ? '↓ Restore' : '↓ Download';
+      return entry.baseline && !entry.localHash ? t('↓ Restore') : t('↓ Download');
     case 'conflict':
-      return '⇄ Keep both';
+      return entry.resolution ? t('⇄ Resolved') : t('⇄ Resolve');
+    case 'delete-local':
+      return t('Delete local');
+    case 'delete-remote':
+      return t('Delete on Disk');
     case 'skip':
-      return 'Skipped';
+      return t('Skipped');
     case 'error':
-      return 'Error';
+      return t('Error');
     case 'unchanged':
-      return 'Unchanged';
+      return t('Unchanged');
     case 'missing':
-      return 'No action';
+      return t('No action');
   }
 }
 
 function describeEntry(entry: PlanEntry): string {
+  if (entry.resolution?.kind === 'delete')
+    return t('After confirmation, delete existing versions from the device and Yandex Disk.');
+  if (entry.resolution?.kind === 'skip')
+    return t('Skip this file for this run. Neither side is changed.');
+  if (entry.resolution?.kind === 'text') return t('Save the edited result on both sides.');
+  if (entry.resolution?.kind === 'local') return t('Keep this device’s version on both sides.');
+  if (entry.resolution?.kind === 'remote') return t('Keep the Yandex Disk version on both sides.');
   if (entry.action === 'conflict')
-    return 'Keep the cloud version under the original name and preserve the local version as a copy on both sides.';
+    return entry.resolution
+      ? t('Apply the approved result to both sides, or leave a skipped conflict unchanged.')
+      : t('Compare both versions and choose or edit the result before confirming.');
+  if (entry.action === 'delete-local')
+    return t('Remove the device-only file after saving a local recovery copy.');
+  if (entry.action === 'delete-remote')
+    return t('Remove the Disk-only file after saving a local recovery copy.');
   if (entry.action === 'upload')
     return entry.remoteHash
-      ? 'Replace the cloud version with this device’s version.'
+      ? t('Replace the cloud version with this device’s version.')
       : entry.baseline
-        ? 'Restore the missing file on Yandex Disk.'
-        : 'Create this file on Yandex Disk.';
+        ? t('Restore the missing file on Yandex Disk.')
+        : t('Create this file on Yandex Disk.');
   if (entry.action === 'download')
     return entry.localHash
-      ? 'Replace this device’s version with the cloud version.'
+      ? t('Replace this device’s version with the cloud version.')
       : entry.baseline
-        ? 'Restore the missing file on this device.'
-        : 'Create this file on this device.';
+        ? t('Restore the missing file on this device.')
+        : t('Create this file on this device.');
   return entry.message ?? '';
 }

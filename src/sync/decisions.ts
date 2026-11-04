@@ -1,15 +1,16 @@
-import type { Snapshot } from './types';
+import { t } from '../i18n';
+import type { FileVersion } from './types';
 
 type SyncChange =
   | { kind: 'missing' }
   | { kind: 'unchanged'; hash: string }
-  | { kind: 'upload'; local: Snapshot; remote?: Snapshot }
-  | { kind: 'download'; remote: Snapshot; local?: Snapshot }
-  | { kind: 'conflict'; local: Snapshot; remote: Snapshot };
+  | { kind: 'upload'; local: FileVersion; remote?: FileVersion }
+  | { kind: 'download'; remote: FileVersion; local?: FileVersion }
+  | { kind: 'conflict'; local: FileVersion; remote: FileVersion };
 
 export function decideChange(
-  local: Snapshot | undefined,
-  remote: Snapshot | undefined,
+  local: FileVersion | undefined,
+  remote: FileVersion | undefined,
   baseline: string | undefined,
 ): SyncChange {
   if (!local && !remote) return { kind: 'missing' };
@@ -17,5 +18,5 @@ export function decideChange(
   if (local && (!remote || baseline === remote.hash)) return { kind: 'upload', local, remote };
   if (remote && (!local || baseline === local.hash)) return { kind: 'download', remote, local };
   if (local && remote) return { kind: 'conflict', local, remote };
-  throw new Error('Unexpected synchronization state.');
+  throw new Error(t('Unexpected synchronization state.'));
 }

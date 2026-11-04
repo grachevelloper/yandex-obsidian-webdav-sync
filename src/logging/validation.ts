@@ -46,6 +46,14 @@ function isLogDetails(value: unknown): value is LogEvent['details'] {
 function isSyncResult(value: unknown): value is SyncResult {
   if (!isObject(value)) return false;
   if (typeof value.uploaded !== 'number' || typeof value.downloaded !== 'number') return false;
+  for (const key of ['resolved', 'edited', 'deletedLocal', 'deletedRemote']) {
+    const count = value[key];
+    if (
+      count !== undefined &&
+      (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0)
+    )
+      return false;
+  }
   if (!Array.isArray(value.conflicts) || !value.conflicts.every(isConflict)) return false;
 
   return isStringArray(value.skipped) && isStringArray(value.errors);

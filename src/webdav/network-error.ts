@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { isObject } from '../shared/objects';
 
 const KNOWN_NETWORK_CODES = [
@@ -23,7 +24,12 @@ export class NetworkRequestError extends Error {
     method: string,
     readonly code: string,
   ) {
-    super(`WebDAV network error (${method}, ${code}). Check your connection and run sync again.`);
+    super(
+      t('WebDAV network error ({0}, {1}). Check your connection and run sync again.', {
+        '0': method,
+        '1': code,
+      }),
+    );
   }
 }
 

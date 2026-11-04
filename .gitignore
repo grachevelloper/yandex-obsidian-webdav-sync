@@ -4,3 +4,5 @@ release/
 *.zip
 .DS_Store
 .artifacts/
+data.json
+.obsidian/

@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+import { normalizeETag } from './etag';
 import { isObject } from '../shared/objects';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { validatePath } from '../shared/paths';
@@ -7,11 +9,12 @@ interface DavEntry {
   path: string;
   size: number;
   directory: boolean;
+  revision?: string;
 }
 
 export function parseListing(xml: string, root: string): DavEntry[] {
   if (/<!DOCTYPE|<!ENTITY/iu.test(xml) || XMLValidator.validate(xml) !== true) {
-    throw new Error('Invalid XML in the WebDAV response.');
+    throw new Error(t('Invalid XML in the WebDAV response.'));
   }
 
   const document: unknown = new XMLParser({
@@ -22,20 +25,20 @@ export function parseListing(xml: string, root: string): DavEntry[] {
   }).parse(xml);
 
   if (!isObject(document) || !isObject(document.multistatus)) {
-    throw new Error('Expected a WebDAV multistatus listing.');
+    throw new Error(t('Expected a WebDAV multistatus listing.'));
   }
 
   const responses: unknown = document.multistatus.response;
-  if (!Array.isArray(responses)) throw new Error('Empty or incomplete WebDAV response.');
+  if (!Array.isArray(responses)) throw new Error(t('Empty or incomplete WebDAV response.'));
 
   return responses.map((item: unknown) => {
     if (!isObject(item) || typeof item.href !== 'string' || !Array.isArray(item.propstat)) {
-      throw new Error('Incomplete WebDAV file properties.');
+      throw new Error(t('Incomplete WebDAV file properties.'));
     }
 
     const url = new URL(item.href, WEBDAV_ENDPOINT);
     if (url.origin !== WEBDAV_ENDPOINT || url.search || url.hash) {
-      throw new Error('WebDAV returned a URL outside the storage endpoint.');
+      throw new Error(t('WebDAV returned a URL outside the storage endpoint.'));
     }
 
     const fullPath = url.pathname
@@ -44,32 +47,53 @@ export function parseListing(xml: string, root: string): DavEntry[] {
       .map((segment) => {
         const decoded = decodeURIComponent(segment);
         if (decoded.includes('/') || decoded.includes('\\'))
-          throw new Error('Ambiguous WebDAV path.');
+          throw new Error(t('Ambiguous WebDAV path.'));
         return decoded;
       })
       .join('/');
-    validatePath(fullPath);
+    if (fullPath !== '' || root !== '') validatePath(fullPath);
 
     if (fullPath !== root && !fullPath.startsWith(`${root}/`)) {
-      throw new Error('WebDAV returned a file outside the selected folder.');
+      throw new Error(t('WebDAV returned a file outside the selected folder.'));
     }
 
-    const successful = item.propstat.find(
-      (value: unknown) =>
-        isObject(value) &&
-        typeof value.status === 'string' &&
-        /^HTTP\/\S+ 200(?: |$)/u.test(value.status),
-    );
-    if (!isObject(successful) || !isObject(successful.prop)) {
-      throw new Error('WebDAV did not allow reading file properties.');
-    }
-
-    const properties = successful.prop;
+    const properties = successfulProperties(item.propstat);
+    const revision = normalizeETag(properties.getetag);
     const directory =
       isObject(properties.resourcetype) && Object.hasOwn(properties.resourcetype, 'collection');
     const size = directory ? 0 : Number(properties.getcontentlength);
-    if (!Number.isSafeInteger(size) || size < 0) throw new Error('Invalid WebDAV file size.');
+    if (!Number.isSafeInteger(size) || size < 0) throw new Error(t('Invalid WebDAV file size.'));
 
-    return { path: fullPath === root ? '' : fullPath.slice(root.length + 1), size, directory };
+    return {
+      path: fullPath === root ? '' : fullPath.slice(root.length + 1),
+      size,
+      directory,
+      ...(revision ? { revision } : {}),
+    };
   });
+}
+
+function successfulProperties(values: unknown[]): Record<string, unknown> {
+  const properties: Record<string, unknown> = Object.create(null);
+  let found = false;
+  let etagSeen = false;
+  let ambiguousEtag = false;
+  for (const value of values) {
+    if (
+      !isObject(value) ||
+      typeof value.status !== 'string' ||
+      !/^HTTP\/\S+ 200(?: |$)/u.test(value.status) ||
+      !isObject(value.prop)
+    )
+      continue;
+    found = true;
+    if (Object.hasOwn(value.prop, 'getetag')) {
+      if (etagSeen && value.prop.getetag !== properties.getetag) ambiguousEtag = true;
+      etagSeen = true;
+    }
+    Object.assign(properties, value.prop);
+  }
+  if (!found) throw new Error(t('WebDAV did not allow reading file properties.'));
+  if (ambiguousEtag) properties.getetag = undefined;
+  return properties;
 }

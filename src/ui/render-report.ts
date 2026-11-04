@@ -1,3 +1,5 @@
+import { t, getLocale } from '../i18n';
+
 import type { SyncProgress } from '../sync/progress';
 import type { RunLog } from '../logging/log';
 
@@ -30,7 +32,7 @@ export function renderReport(
     create(
       'div',
       `yds-status ${needsAttention ? 'yds-status-attention' : ''}`,
-      needsAttention ? '!' : '✓',
+      log.outcome === 'cancelled' ? '■' : needsAttention ? '!' : '✓',
     ),
   );
   const heading = create('div', 'yds-heading');
@@ -38,29 +40,49 @@ export function renderReport(
   header.append(heading);
   container.append(header);
 
-  const date = new Date(log.finishedAt ?? log.startedAt).toLocaleString('en', {
+  const date = new Date(log.finishedAt ?? log.startedAt).toLocaleString(getLocale(), {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
   container.append(create('p', 'yds-meta', date));
+  if (log.outcome === 'cancelled')
+    container.append(
+      create(
+        'p',
+        'yds-description',
+        t('Sync stopped. Completed changes are kept. Run a new preview to continue.'),
+      ),
+    );
   if (progress?.total !== undefined)
     container.append(
       create(
         'p',
         'yds-progress-count',
-        `${progress.processed} / ${progress.total} files processed`,
+        t('{0} / {1} files processed', { '0': progress.processed, '1': progress.total }),
       ),
     );
   const metrics = create('div', 'yds-metrics');
   metrics.hidden = !result;
-  metrics.setAttribute('aria-label', 'Sync totals');
+  metrics.setAttribute('aria-label', t('Sync totals'));
   for (const [label, value, attention] of [
-    ['Uploaded', result?.uploaded ?? 0, false],
-    ['Downloaded', result?.downloaded ?? 0, false],
-    ['Conflicts', result?.conflicts.length ?? 0, true],
-    ['Skipped', result?.skipped.length ?? 0, true],
-    ['Errors', (result?.errors.length ?? 0) + (log.failure ? 1 : 0), true],
+    [t('Uploaded'), result?.uploaded ?? 0, false],
+    [t('Downloaded'), result?.downloaded ?? 0, false],
+    [t('Edited'), result?.edited ?? 0, false],
+    [t('Resolved'), result?.resolved ?? 0, false],
+    [t('Deleted locally'), result?.deletedLocal ?? 0, true],
+    [t('Deleted on Disk'), result?.deletedRemote ?? 0, true],
+    [t('Conflicts'), result?.conflicts.length ?? 0, true],
+    [t('Skipped'), result?.skipped.length ?? 0, true],
+    [t('Errors'), (result?.errors.length ?? 0) + (log.failure ? 1 : 0), true],
   ] as const) {
+    if (
+      value === 0 &&
+      (label === t('Edited') ||
+        label === t('Resolved') ||
+        label === t('Deleted locally') ||
+        label === t('Deleted on Disk'))
+    )
+      continue;
     const card = create('div', `yds-stat${attention && value ? ' yds-stat-attention' : ''}`);
     card.append(
       create('strong', 'yds-stat-value', String(value)),
@@ -74,18 +96,20 @@ export function renderReport(
   if (result?.conflicts.length) {
     const section = create('section', 'yds-section');
     section.append(
-      create('h3', 'yds-section-title', 'Both versions are safe'),
+      create('h3', 'yds-section-title', t('Both versions are safe')),
       create(
         'p',
         'yds-description',
-        'The cloud version keeps the original name. Your local edit is saved beside it. Both files are now on this device and Yandex Disk.',
+        t(
+          'The cloud version keeps the original name. Your local edit is saved beside it. Both files are now on this device and Yandex Disk.',
+        ),
       ),
     );
     for (const conflict of result.conflicts) {
       const pair = create('div', 'yds-conflict');
       for (const [label, path] of [
-        ['Cloud version', conflict.path],
-        ['Local version', conflict.copyPath],
+        [t('Cloud version'), conflict.path],
+        [t('Local version'), conflict.copyPath],
       ]) {
         const row = create('div', 'yds-version');
         row.append(create('span', 'yds-version-label', label), create('code', 'yds-path', path));
@@ -97,8 +121,8 @@ export function renderReport(
   }
 
   for (const [title, items, expanded] of [
-    ['Errors · resolve the cause and run sync again', result?.errors ?? [], true],
-    ['Skipped · files exceed the 50 MiB limit', result?.skipped ?? [], false],
+    [t('Errors · resolve the cause and run sync again'), result?.errors ?? [], true],
+    [t('Skipped · left unchanged'), result?.skipped ?? [], false],
   ] as const) {
     if (!items.length) continue;
     const details = create('details', 'yds-details');
@@ -111,18 +135,29 @@ export function renderReport(
   }
 
   const footer = create('div', 'yds-footer');
-  const button = create('button', 'yds-log-button', 'View sync log');
+  const button = create('button', 'yds-log-button', t('View sync log'));
   button.type = 'button';
   button.addEventListener('click', openLog);
-  footer.append(create('span', 'yds-footnote', 'Manual sync · missing files are restored'), button);
+  footer.append(
+    create('span', 'yds-footnote', t('Manual sync · changes confirmed in preview')),
+    button,
+  );
   container.append(footer);
 }
 
 function reportHeadline(log: RunLog, needsAttention: boolean): string {
-  if (log.outcome === 'cancelled') return 'Sync cancelled';
-  if (log.outcome === 'failed') return 'Sync stopped';
-  if (needsAttention) return 'A few things to review';
-  if (log.result && log.result.uploaded + log.result.downloaded === 0)
-    return 'Everything is up to date';
-  return 'Your files are in sync';
+  if (log.outcome === 'cancelled') return t('Sync cancelled');
+  if (log.outcome === 'failed') return t('Sync stopped');
+  if (needsAttention) return t('A few things to review');
+  if (
+    log.result &&
+    log.result.uploaded +
+      log.result.downloaded +
+      (log.result.deletedLocal ?? 0) +
+      (log.result.deletedRemote ?? 0) +
+      (log.result.resolved ?? 0) ===
+      0
+  )
+    return t('Everything is up to date');
+  return t('Your files are in sync');
 }

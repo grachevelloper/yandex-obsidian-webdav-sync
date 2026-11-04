@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { SyncResult } from '../sync/types';
 
 export interface LogEvent {
@@ -51,8 +52,14 @@ export class SyncLog {
     this.data.finishedAt = new Date().toISOString();
   }
 
-  cancel(): void {
-    this.record('info', 'Sync preview cancelled; no files transferred');
+  cancel(result?: SyncResult): void {
+    this.data.result = result;
+    this.record(
+      'info',
+      result
+        ? t('Sync stopped by user; completed changes are kept')
+        : t('Sync preview cancelled; no files transferred'),
+    );
     this.data.outcome = 'cancelled';
     this.data.finishedAt = new Date().toISOString();
   }
