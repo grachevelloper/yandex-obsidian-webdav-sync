@@ -6,7 +6,8 @@ The plugin runs inside Obsidian. No backend, database server or hosting is neede
 
 ## Features
 
-- Prepare a read-only preview from the ribbon button, the **Sync with Yandex Disk** command or plugin settings.
+- Watch file checks and transfers in a compact progress window with processed/total counts, active files, elapsed time and retry countdowns. Hide and reopen the window without starting a second run; preview confirmation and the final report stay in the same window.
+- Prepare a read-only preview from the ribbon button, the **Preview sync with Yandex Disk** command or plugin settings.
 - Browse a compact file tree with collapsible folders and an action column. Unchanged files are hidden by default and can be shown. The total counts each path once across both devices, including skipped and failed checks.
 - Confirm the plan before applying file changes. Review uploads, downloads, exact conflict-copy names and skipped files, or cancel without transfers. No remote folders are created during preview.
 - Files changed after preview are skipped with an error; prepare a new preview to approve their current versions. Files added after preview wait for the next run.

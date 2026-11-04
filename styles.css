@@ -380,3 +380,94 @@
     overflow-wrap: anywhere;
   }
 }
+
+.yds-sync-modal .modal-title {
+  font-size: 16px;
+}
+
+.yds-progress {
+  font-size: 12px;
+}
+
+.yds-progress-count {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  margin: 0 0 10px;
+}
+
+.yds-active-files {
+  max-height: 180px;
+  overflow: auto;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yds-active-file {
+  padding: 3px 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-monospace, monospace);
+  font-size: 11px;
+}
+
+.yds-progress-activity {
+  min-height: 2.8em;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  margin: 8px 0;
+}
+
+.yds-progress-hint,
+.yds-progress-elapsed {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.yds-progress-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.yds-progress-footer .yds-preview-actions {
+  margin-top: 0;
+}
+
+.yds-sync-modal .yds-status {
+  display: none;
+}
+
+.yds-sync-modal .yds-header {
+  margin-top: 0;
+}
+
+.yds-sync-modal .yds-title {
+  font-size: 16px;
+}
+
+.yds-sync-modal .yds-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 12px 0;
+}
+
+.yds-sync-modal .yds-metrics[hidden] {
+  display: none;
+}
+
+.yds-sync-modal .yds-stat {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.yds-sync-modal .yds-stat-value {
+  font-size: 14px;
+}

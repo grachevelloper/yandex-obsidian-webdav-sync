@@ -99,9 +99,8 @@ export class SyncSettingsTab extends PluginSettingTab {
       )
       .addButton((button) =>
         button
-          .setButtonText(this.syncPlugin.running ? 'Syncing…' : 'Preview sync')
+          .setButtonText(this.syncPlugin.running ? 'View progress' : 'Preview sync')
           .setCta()
-          .setDisabled(this.syncPlugin.running)
           .onClick(() => {
             void this.syncPlugin.runSync();
           }),

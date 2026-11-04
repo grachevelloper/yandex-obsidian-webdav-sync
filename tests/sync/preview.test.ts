@@ -294,3 +294,19 @@ test('does not start another write after a fatal persistence failure in a parall
   await rejected;
   assert.deepEqual(remote.writes, ['a.md']);
 });
+
+test('preview progress counts skipped and failed files and keeps active paths accurate', async () => {
+  const { local, remote, state } = setup();
+  await local.set('a.md', 'a');
+  await local.set('b.md', 'b');
+  const list = local.list.bind(local);
+  local.list = async () => [...(await list()), { path: 'large.bin', size: 60 * 1024 * 1024 }];
+  remote.read = async (path) => {
+    if (path === 'a.md') throw new Error('Unavailable');
+    return undefined;
+  };
+  const updates: import('../../src/sync/progress').SyncProgress[] = [];
+  await planSync(local, remote, state, (progress) => updates.push(progress), undefined, 2);
+  assert.deepEqual(updates[0], { phase: 'listing', processed: 0, activePaths: [] });
+  assert.deepEqual(updates.at(-1), { phase: 'preview', processed: 3, total: 3, activePaths: [] });
+});
