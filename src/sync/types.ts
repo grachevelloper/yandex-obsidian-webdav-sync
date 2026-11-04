@@ -33,3 +33,18 @@ export interface SyncResult {
   skipped: string[];
   errors: string[];
 }
+
+export interface PlanEntry {
+  path: string;
+  action: 'upload' | 'download' | 'conflict' | 'unchanged' | 'missing' | 'skip' | 'error';
+  baseline?: string;
+  localHash?: string;
+  remoteHash?: string;
+  copyPath?: string;
+  message?: string;
+}
+
+export interface SyncPlan {
+  scope: string;
+  entries: PlanEntry[];
+}

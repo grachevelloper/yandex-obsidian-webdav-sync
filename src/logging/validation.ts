@@ -18,7 +18,13 @@ export function isRunLog(value: unknown): value is RunLog {
 }
 
 function isRunOutcome(value: unknown): value is RunLog['outcome'] {
-  return value === 'running' || value === 'completed' || value === 'partial' || value === 'failed';
+  return (
+    value === 'running' ||
+    value === 'completed' ||
+    value === 'partial' ||
+    value === 'failed' ||
+    value === 'cancelled'
+  );
 }
 
 function isLogEvent(value: unknown): value is LogEvent {

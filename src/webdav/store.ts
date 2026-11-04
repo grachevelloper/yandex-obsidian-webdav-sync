@@ -7,6 +7,7 @@ import { WebDavClient, requireStatus, type Connection, type HttpClient } from '.
 import { WebDavFolders } from './folders';
 import { HTTP_STATUS } from './protocol';
 import { readETag, validateFileWrite } from './validation';
+import type { RequestOptions } from './request-scheduler';
 
 export class WebDavStore implements SyncStore {
   private readonly root: string;
@@ -18,9 +19,10 @@ export class WebDavStore implements SyncStore {
     http: HttpClient,
     private readonly include: (path: string) => boolean,
     log?: LogSink,
+    options: RequestOptions = {},
   ) {
     this.root = validateRemoteFolder(connection.folder);
-    this.client = new WebDavClient(connection, http, log);
+    this.client = new WebDavClient(connection, http, log, options);
     this.folders = new WebDavFolders(this.client, this.root, include);
   }
 

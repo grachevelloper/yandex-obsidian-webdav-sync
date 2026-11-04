@@ -1,8 +1,9 @@
 import { PluginSettingTab, Setting } from 'obsidian';
-import type YandexDiskSync from '../main';
+import { isRequestIntervalMs, MAX_CONCURRENT_REQUESTS } from '../shared/transfer-limits';
+import type WebDavSync from '../main';
 
 export class SyncSettingsTab extends PluginSettingTab {
-  constructor(private readonly syncPlugin: YandexDiskSync) {
+  constructor(private readonly syncPlugin: WebDavSync) {
     super(syncPlugin.app, syncPlugin);
   }
 
@@ -53,15 +54,53 @@ export class SyncSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName('Concurrent requests')
+      .setDesc(
+        'Maximum requests running at once, from 1 to 8. Applies to preview and confirmed sync. Higher values use more memory.',
+      )
+      .addDropdown((dropdown) => {
+        for (let value = 1; value <= MAX_CONCURRENT_REQUESTS; value++)
+          dropdown.addOption(String(value), String(value));
+        dropdown
+          .setValue(String(this.syncPlugin.data.settings.concurrentRequests))
+          .setDisabled(this.syncPlugin.running)
+          .onChange((value) => {
+            void this.syncPlugin.updateSettings({ concurrentRequests: Number(value) });
+          });
+      });
+
+    new Setting(containerEl)
+      .setName('Request start interval (seconds)')
+      .setDesc(
+        'Minimum time between starting requests, even when they overlap. From 0.1 to 60 seconds; default 1. Server cooldowns can make the wait longer.',
+      )
+      .addText((text) => {
+        text.inputEl.type = 'number';
+        text.inputEl.min = '0.1';
+        text.inputEl.max = '60';
+        text.inputEl.step = '0.001';
+        text
+          .setValue(String(this.syncPlugin.data.settings.requestIntervalMs / 1000))
+          .setDisabled(this.syncPlugin.running)
+          .onChange((value) => {
+            const milliseconds = Math.round(Number(value) * 1000);
+            if (isRequestIntervalMs(milliseconds))
+              void this.syncPlugin.updateSettings({ requestIntervalMs: milliseconds });
+          });
+        text.inputEl.addEventListener('blur', () =>
+          text.setValue(String(this.syncPlugin.data.settings.requestIntervalMs / 1000)),
+        );
+      });
+
+    new Setting(containerEl)
       .setName('Run sync')
       .setDesc(
-        'Missing files are restored from the other side. Both conflicting versions are preserved beside the original.',
+        'Review uploads, downloads and conflicts before confirming any transfers. Missing files are restored; no deletions are propagated.',
       )
       .addButton((button) =>
         button
-          .setButtonText(this.syncPlugin.running ? 'Syncing…' : 'Sync now')
+          .setButtonText(this.syncPlugin.running ? 'View progress' : 'Preview sync')
           .setCta()
-          .setDisabled(this.syncPlugin.running)
           .onClick(() => {
             void this.syncPlugin.runSync();
           }),

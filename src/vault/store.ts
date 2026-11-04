@@ -5,6 +5,9 @@ import { snapshot } from '../sync/snapshot';
 import type { FileEntry, Snapshot, SyncStore } from '../sync/types';
 
 export class VaultStore implements SyncStore {
+  private readonly pendingFolders = new Map<string, Promise<unknown>>();
+  private recoveryFolderReady?: Promise<void>;
+
   constructor(
     private readonly vault: Vault,
     private readonly recoveryFolder: string,
@@ -81,20 +84,41 @@ export class VaultStore implements SyncStore {
       const existing = this.vault.getAbstractFileByPath(current);
       if (existing && !('children' in existing))
         throw new Error(`A file exists instead of a folder: ${current}`);
-      if (!existing) await this.vault.createFolder(current);
+      if (!existing) {
+        let creating = this.pendingFolders.get(current);
+        if (!creating) {
+          creating = this.vault.createFolder(current);
+          this.pendingFolders.set(current, creating);
+        }
+        try {
+          await creating;
+        } finally {
+          if (this.pendingFolders.get(current) === creating) this.pendingFolders.delete(current);
+        }
+      }
     }
   }
 
   private async backup(file: Snapshot): Promise<void> {
-    let current = '';
-    for (const part of this.recoveryFolder.split('/')) {
-      current = current ? `${current}/${part}` : part;
-      if (!(await this.vault.adapter.exists(current))) await this.vault.adapter.mkdir(current);
+    const ready = (this.recoveryFolderReady ??= this.ensureRecoveryFolder());
+    try {
+      await ready;
+    } catch (error) {
+      if (this.recoveryFolderReady === ready) this.recoveryFolderReady = undefined;
+      throw error;
     }
 
     const path = `${this.recoveryFolder}/${file.hash}`;
     if (!(await this.vault.adapter.exists(path)))
       await this.vault.adapter.writeBinary(path, file.data);
+  }
+
+  private async ensureRecoveryFolder(): Promise<void> {
+    let current = '';
+    for (const part of this.recoveryFolder.split('/')) {
+      current = current ? `${current}/${part}` : part;
+      if (!(await this.vault.adapter.exists(current))) await this.vault.adapter.mkdir(current);
+    }
   }
 }
 

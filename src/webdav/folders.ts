@@ -11,6 +11,7 @@ import {
 
 export class WebDavFolders {
   private readonly known = new Set<string>();
+  private readonly pending = new Map<string, Promise<void>>();
 
   constructor(
     private readonly client: WebDavClient,
@@ -29,14 +30,26 @@ export class WebDavFolders {
       current = current ? `${current}/${part}` : part;
       if (this.known.has(current)) continue;
 
-      const response = await this.client.request('MKCOL', current);
-      requireStatus(response, [HTTP_STATUS.CREATED, HTTP_STATUS.METHOD_NOT_ALLOWED]);
-      this.known.add(current);
+      let creating = this.pending.get(current);
+      if (!creating) {
+        creating = this.createFolder(current);
+        this.pending.set(current, creating);
+      }
+      try {
+        await creating;
+      } finally {
+        if (this.pending.get(current) === creating) this.pending.delete(current);
+      }
     }
   }
 
+  private async createFolder(path: string): Promise<void> {
+    const response = await this.client.request('MKCOL', path);
+    requireStatus(response, [HTTP_STATUS.CREATED, HTTP_STATUS.METHOD_NOT_ALLOWED]);
+    this.known.add(path);
+  }
+
   async listFiles(): Promise<FileEntry[]> {
-    await this.ensure(this.root);
     const queue = [''];
     const visited = new Set<string>();
     const files: FileEntry[] = [];
@@ -55,12 +68,14 @@ export class WebDavFolders {
         { Depth: PROPFIND_CHILDREN_DEPTH, 'Content-Type': 'application/xml; charset=utf-8' },
         PROPFIND_PROPERTIES,
       );
+      if (response.status === HTTP_STATUS.NOT_FOUND && relative === '') return [];
       requireStatus(response, [HTTP_STATUS.MULTI_STATUS]);
       const entries = parseListing(response.text, this.root);
       if (!entries.some((entry) => entry.path === relative && entry.directory)) {
         throw new Error('WebDAV did not confirm the selected folder.');
       }
 
+      this.known.add(folder);
       for (const entry of entries) {
         if (entry.path === relative) continue;
         if (parentPath(entry.path) !== relative)

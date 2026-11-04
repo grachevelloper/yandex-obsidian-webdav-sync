@@ -174,3 +174,300 @@
   font-size: 12px;
   background: var(--background-secondary, #f7f8fa);
 }
+
+.yds-preview-modal {
+  width: min(620px, 95vw);
+}
+
+.yds-preview-modal .modal-title {
+  font-size: 16px;
+}
+
+.yds-preview {
+  color: var(--text-normal, #25262c);
+  font-size: 12px;
+}
+
+.yds-preview-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 0 0 10px;
+  color: var(--text-muted, #737781);
+}
+
+.yds-preview-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.yds-preview-filter input {
+  margin: 0;
+}
+
+.yds-preview-list {
+  max-height: min(50vh, 420px);
+  overflow: auto;
+  border: 1px solid var(--background-modifier-border, #e4e6eb);
+  border-radius: 6px;
+}
+
+.yds-preview-table {
+  width: 100%;
+  table-layout: fixed;
+  border-spacing: 0;
+  font-size: inherit;
+}
+
+.yds-preview-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--background-secondary, #f7f8fa);
+  color: var(--text-muted, #737781);
+  font-weight: 500;
+  text-align: start;
+}
+
+.yds-preview-table th,
+.yds-preview-table td {
+  height: 22px;
+  padding: 1px 8px;
+  vertical-align: top;
+}
+
+.yds-preview-table th:last-child {
+  width: 112px;
+}
+
+.yds-preview-table .yds-preview-file-cell {
+  padding-inline-start: calc(8px + var(--yds-depth, 0) * 14px);
+}
+
+.yds-preview-table tbody tr:hover {
+  background: var(--background-modifier-hover, #f4f5f7);
+}
+
+.yds-preview-table tr[hidden] {
+  display: none;
+}
+
+.yds-folder-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+}
+
+.yds-tree-chevron {
+  width: 10px;
+  flex: 0 0 10px;
+  color: var(--text-muted, #737781);
+}
+
+.yds-preview-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 22px;
+}
+
+.yds-folder-toggle .yds-preview-name {
+  min-width: 0;
+}
+
+.yds-preview-file .yds-preview-name,
+.yds-preview-file .yds-preview-copy,
+.yds-preview-file .yds-preview-message {
+  padding-inline-start: 15px;
+}
+
+.yds-folder-count {
+  color: var(--text-faint, #9297a0);
+  font-size: 11px;
+}
+
+.yds-preview-action {
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.yds-action-upload .yds-preview-action {
+  color: var(--color-green, #26825c);
+}
+
+.yds-action-download .yds-preview-action {
+  color: var(--color-blue, #377bbd);
+}
+
+.yds-action-conflict .yds-preview-action,
+.yds-action-skip .yds-preview-action {
+  color: var(--color-orange, #b86a14);
+}
+
+.yds-action-error .yds-preview-action,
+.yds-preview-warning {
+  color: var(--text-error, #c53d43);
+}
+
+.yds-action-unchanged,
+.yds-action-missing {
+  color: var(--text-muted, #737781);
+}
+
+.yds-preview-copy,
+.yds-preview-message {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.yds-preview-copy summary {
+  width: fit-content;
+  color: var(--text-muted, #737781);
+  cursor: pointer;
+}
+
+.yds-preview-copy code {
+  display: block;
+  margin-top: 4px;
+  padding: 0;
+  background: transparent;
+  white-space: pre-wrap;
+  font-size: inherit;
+}
+
+.yds-preview-hint,
+.yds-preview-warning {
+  margin: 8px 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.yds-preview-hint {
+  color: var(--text-muted, #737781);
+}
+
+.yds-preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+@media (max-width: 480px) {
+  .yds-preview-table th:last-child {
+    width: 94px;
+  }
+
+  .yds-preview-file .yds-preview-name {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+.yds-sync-modal .modal-title {
+  font-size: 16px;
+}
+
+.yds-progress {
+  font-size: 12px;
+}
+
+.yds-progress-count {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  margin: 0 0 10px;
+}
+
+.yds-active-files {
+  max-height: 180px;
+  overflow: auto;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yds-active-file {
+  padding: 3px 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-monospace, monospace);
+  font-size: 11px;
+}
+
+.yds-progress-activity {
+  min-height: 2.8em;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  margin: 8px 0;
+}
+
+.yds-progress-hint,
+.yds-progress-elapsed {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.yds-progress-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.yds-progress-footer .yds-preview-actions {
+  margin-top: 0;
+}
+
+.yds-sync-modal .yds-status {
+  display: none;
+}
+
+.yds-sync-modal .yds-header {
+  margin-top: 0;
+}
+
+.yds-sync-modal .yds-title {
+  font-size: 16px;
+}
+
+.yds-sync-modal .yds-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 12px 0;
+}
+
+.yds-sync-modal .yds-metrics[hidden] {
+  display: none;
+}
+
+.yds-sync-modal .yds-stat {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.yds-sync-modal .yds-stat-value {
+  font-size: 14px;
+}

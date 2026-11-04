@@ -115,3 +115,14 @@ test('restores completed logs including conflict paths and optional metadata', a
 
   assert.deepEqual(await repository.latest(), log.data);
 });
+
+test('persists cancellation separately from success and failure', async () => {
+  const { repository } = storage();
+  const log = new SyncLog();
+  log.cancel();
+  await repository.save(log.data);
+  const restored = await repository.latest();
+  assert.equal(restored?.outcome, 'cancelled');
+  assert.ok(restored?.finishedAt);
+  assert.equal(restored?.result, undefined);
+});

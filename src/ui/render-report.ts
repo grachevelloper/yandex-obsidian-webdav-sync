@@ -1,6 +1,12 @@
+import type { SyncProgress } from '../sync/progress';
 import type { RunLog } from '../logging/log';
 
-export function renderReport(container: HTMLElement, log: RunLog, openLog: () => void): void {
+export function renderReport(
+  container: HTMLElement,
+  log: RunLog,
+  openLog: () => void,
+  progress?: SyncProgress,
+): void {
   const document = container.ownerDocument;
   const create = <K extends keyof HTMLElementTagNameMap>(
     tag: K,
@@ -28,10 +34,7 @@ export function renderReport(container: HTMLElement, log: RunLog, openLog: () =>
     ),
   );
   const heading = create('div', 'yds-heading');
-  heading.append(
-    create('p', 'yds-eyebrow', 'YANDEX DISK SYNC'),
-    create('h2', 'yds-title', headline),
-  );
+  heading.append(create('h2', 'yds-title', headline));
   header.append(heading);
   container.append(header);
 
@@ -40,7 +43,16 @@ export function renderReport(container: HTMLElement, log: RunLog, openLog: () =>
     timeStyle: 'short',
   });
   container.append(create('p', 'yds-meta', date));
+  if (progress?.total !== undefined)
+    container.append(
+      create(
+        'p',
+        'yds-progress-count',
+        `${progress.processed} / ${progress.total} files processed`,
+      ),
+    );
   const metrics = create('div', 'yds-metrics');
+  metrics.hidden = !result;
   metrics.setAttribute('aria-label', 'Sync totals');
   for (const [label, value, attention] of [
     ['Uploaded', result?.uploaded ?? 0, false],
@@ -107,6 +119,7 @@ export function renderReport(container: HTMLElement, log: RunLog, openLog: () =>
 }
 
 function reportHeadline(log: RunLog, needsAttention: boolean): string {
+  if (log.outcome === 'cancelled') return 'Sync cancelled';
   if (log.outcome === 'failed') return 'Sync stopped';
   if (needsAttention) return 'A few things to review';
   if (log.result && log.result.uploaded + log.result.downloaded === 0)

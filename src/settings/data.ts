@@ -1,8 +1,15 @@
+import {
+  DEFAULT_TRANSFER_LIMITS,
+  isConcurrentRequests,
+  isRequestIntervalMs,
+  validateTransferLimits,
+  type TransferLimits,
+} from '../shared/transfer-limits';
 import { isObject } from '../shared/objects';
 import { validateRemoteFolder } from '../shared/paths';
 import type { SyncState } from '../sync/types';
 
-export interface Settings {
+export interface Settings extends TransferLimits {
   login: string;
   password: string;
   folder: string;
@@ -25,13 +32,23 @@ export function loadPluginData(value: unknown): PluginData {
   if (value !== null && value !== undefined && !isObject(value))
     throw new Error('Invalid saved settings.');
 
-  const settings: Settings = { login: '', password: '', folder: 'Obsidian/Personal' };
+  const settings: Settings = {
+    login: '',
+    password: '',
+    folder: 'Obsidian/Personal',
+    ...DEFAULT_TRANSFER_LIMITS,
+  };
 
   if (isObject(value) && isObject(value.settings)) {
     for (const key of ['login', 'password', 'folder'] as const) {
       const setting = value.settings[key];
       if (typeof setting === 'string') settings[key] = setting;
     }
+
+    if (isConcurrentRequests(value.settings.concurrentRequests))
+      settings.concurrentRequests = value.settings.concurrentRequests;
+    if (isRequestIntervalMs(value.settings.requestIntervalMs))
+      settings.requestIntervalMs = value.settings.requestIntervalMs;
   }
 
   const state = emptyState('');
@@ -62,5 +79,6 @@ export function validateSettings(settings: Settings): Settings {
   if (!login || !settings.password || login.includes(':')) {
     throw new Error('Enter your Yandex login and app password in the plugin settings.');
   }
+  validateTransferLimits(settings);
   return { ...settings, login, folder: validateRemoteFolder(settings.folder) };
 }

@@ -1,6 +1,8 @@
 import type { LogSink } from '../logging/log';
 import { validatePath } from '../shared/paths';
 import { HTTP_STATUS, WEBDAV_ENDPOINT } from './protocol';
+import { RequestScheduler, type RequestOptions } from './request-scheduler';
+import { NetworkRequestError, networkErrorCode } from './network-error';
 
 export interface HttpRequest {
   url: string;
@@ -26,12 +28,17 @@ export interface Connection {
 
 export class WebDavClient {
   private readonly authorization: string;
+  private readonly scheduler: RequestScheduler;
+  private readonly now: () => number;
 
   constructor(
     connection: Connection,
     private readonly http: HttpClient,
     private readonly log: LogSink = () => {},
+    private readonly options: RequestOptions = {},
   ) {
+    this.scheduler = new RequestScheduler(options.timing, options);
+    this.now = options.timing?.now ?? Date.now;
     const credentials = new TextEncoder().encode(`${connection.login}:${connection.password}`);
     this.authorization = `Basic ${btoa(Array.from(credentials, (byte) => String.fromCharCode(byte)).join(''))}`;
   }
@@ -43,6 +50,35 @@ export class WebDavClient {
     body?: string | ArrayBuffer,
   ): Promise<HttpResponse> {
     validatePath(path);
+
+    return this.scheduler.run(
+      method,
+      () => this.send(method, path, headers, body),
+      (retry) => {
+        const details: Record<string, string | number> = {
+          method,
+          path,
+          delayMs: retry.delayMs,
+          attempt: retry.attempt,
+          reason: retry.reason,
+        };
+        if (retry.code) details.code = retry.code;
+
+        this.log('info', 'WebDAV request; waiting before retry', details);
+        this.options.onRetry?.(retry);
+      },
+    );
+  }
+
+  private async send(
+    method: string,
+    path: string,
+    headers: Record<string, string>,
+    body?: string | ArrayBuffer,
+  ): Promise<HttpResponse> {
+    const startedAt = this.now();
+    this.log('info', 'WebDAV request started', { method, path });
+    this.options.onRequest?.(method, path);
     let response: HttpResponse;
 
     try {
@@ -52,11 +88,15 @@ export class WebDavClient {
         headers: { Authorization: this.authorization, ...headers },
         body,
       });
-    } catch {
-      this.log('error', 'WebDAV network request failed', { method, path });
-      throw new Error(
-        `WebDAV network error (${method}). Check your connection and run sync again.`,
-      );
+    } catch (error) {
+      const code = networkErrorCode(error);
+      this.log('error', 'WebDAV network request failed', {
+        method,
+        path,
+        code,
+        elapsedMs: this.now() - startedAt,
+      });
+      throw new NetworkRequestError(method, code);
     }
 
     const expectedMissingFile = method === 'GET' && response.status === HTTP_STATUS.NOT_FOUND;
@@ -68,6 +108,7 @@ export class WebDavClient {
       method,
       path,
       status: response.status,
+      elapsedMs: this.now() - startedAt,
     });
     return response;
   }

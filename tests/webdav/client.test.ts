@@ -14,12 +14,12 @@ test('network error details never expose credentials', async () => {
     () => true,
   );
   await assert.rejects(
-    store.read('note.md'),
+    store.write('note.md', new ArrayBuffer(0), undefined),
     (error) => error instanceof Error && !error.message.includes('secret'),
   );
 });
 
-test('records only method, path and status without response contents or credentials', async () => {
+test('records request metadata and duration without response contents or credentials', async () => {
   const log = new SyncLog();
   const http = new WebDavClient(
     { login: 'private-user', password: 'private-password', folder: 'Obsidian' },
@@ -28,7 +28,10 @@ test('records only method, path and status without response contents or credenti
   );
   const reply = await http.request('GET', 'Obsidian/note.md');
   assert.throws(() => requireStatus(reply, [200]), /503/);
-  assert.deepEqual(log.data.events[0]?.details, {
+  const { elapsedMs, ...requestDetails } =
+    log.data.events.find((event) => event.message === 'WebDAV response')?.details ?? {};
+  assert.ok(typeof elapsedMs === 'number' && elapsedMs >= 0);
+  assert.deepEqual(requestDetails, {
     method: 'GET',
     path: 'Obsidian/note.md',
     status: 503,
