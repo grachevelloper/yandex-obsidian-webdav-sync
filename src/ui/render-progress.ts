@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { SyncProgress } from '../sync/progress';
 
 export function renderProgress(container: HTMLElement) {
@@ -21,7 +22,7 @@ export function renderProgress(container: HTMLElement) {
   bar.setAttribute('aria-valuemin', '0');
   bar.setAttribute('aria-valuemax', '100');
   const paths = create('ul', 'yds-active-files');
-  paths.setAttribute('aria-label', 'Active files');
+  paths.setAttribute('aria-label', t('Active files'));
   const activity = create('p', 'yds-progress-activity');
   const elapsed = create('span', 'yds-progress-elapsed');
   const footer = create('div', 'yds-progress-footer');
@@ -35,7 +36,7 @@ export function renderProgress(container: HTMLElement) {
     create(
       'p',
       'yds-progress-hint',
-      'Hide this window to keep working. Use Sync again to reopen it. Keep Obsidian open.',
+      t('Hide this window to keep working. Use Sync again to reopen it. Keep Obsidian open.'),
     ),
     footer,
   );
@@ -50,8 +51,8 @@ export function renderProgress(container: HTMLElement) {
     update(value: SyncProgress) {
       const listing = value.total === undefined;
       count.textContent = listing
-        ? 'Listing folders…'
-        : `${value.processed} / ${value.total} files processed`;
+        ? t('Listing folders…')
+        : t('{0} / {1} files processed', { '0': value.processed, '1': value.total });
       percent = listing
         ? 0
         : value.total === 0
@@ -59,7 +60,7 @@ export function renderProgress(container: HTMLElement) {
           : Math.round((100 * value.processed) / (value.total ?? 1));
       bar.setAttribute(
         'aria-label',
-        value.phase === 'sync' ? 'Sync progress' : 'File check progress',
+        value.phase === 'sync' ? t('Sync progress') : t('File check progress'),
       );
       if (listing) bar.removeAttribute('aria-valuenow');
       else bar.setAttribute('aria-valuenow', String(percent));

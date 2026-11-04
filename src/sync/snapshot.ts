@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { MAX_FILE_BYTES } from '../shared/paths';
 import type { Snapshot } from './types';
 
@@ -9,7 +10,7 @@ export async function hashBytes(data: ArrayBuffer): Promise<string> {
 
 export async function snapshot(data: ArrayBuffer, revision?: string): Promise<Snapshot> {
   if (data.byteLength > MAX_FILE_BYTES) {
-    throw new Error('File exceeds the 50 MiB limit.');
+    throw new Error(t('File exceeds the 50 MiB limit.'));
   }
 
   return { data, hash: await hashBytes(data), revision };

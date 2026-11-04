@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { DataAdapter } from 'obsidian';
 import { isRunLog } from './validation';
 import type { RunLog } from './log';
@@ -34,7 +35,7 @@ export class LogRepository {
 
     const value: unknown = JSON.parse(await this.storage.read(path));
     if (!isRunLog(value))
-      throw new Error('Invalid sync log. Preserve the file before troubleshooting.');
+      throw new Error(t('Invalid sync log. Preserve the file before troubleshooting.'));
 
     return value;
   }

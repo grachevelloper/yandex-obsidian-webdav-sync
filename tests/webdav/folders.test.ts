@@ -103,3 +103,16 @@ test('shares parent creation across concurrent uploads instead of duplicating MK
   assert.equal(new Set(folders.map(({ url }) => url)).size, 3);
   assert.equal(requests.filter(({ method }) => method === 'PUT').length, 2);
 });
+
+test('a missing cloud source blocks mirror sync instead of becoming an empty source', async () => {
+  const store = new WebDavStore(
+    { login: 'user', password: 'secret', folder: 'Obsidian/Personal' },
+    async () => response(404),
+    () => true,
+    undefined,
+    { timing: clock() },
+    undefined,
+    true,
+  );
+  await assert.rejects(store.list(), /source folder/);
+});

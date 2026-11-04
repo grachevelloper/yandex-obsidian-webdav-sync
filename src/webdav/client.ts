@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 import type { LogSink } from '../logging/log';
 import { validatePath } from '../shared/paths';
 import { HTTP_STATUS, WEBDAV_ENDPOINT } from './protocol';
@@ -49,7 +51,7 @@ export class WebDavClient {
     headers: Record<string, string> = {},
     body?: string | ArrayBuffer,
   ): Promise<HttpResponse> {
-    validatePath(path);
+    if (path !== '') validatePath(path);
 
     return this.scheduler.run(
       method,
@@ -64,7 +66,7 @@ export class WebDavClient {
         };
         if (retry.code) details.code = retry.code;
 
-        this.log('info', 'WebDAV request; waiting before retry', details);
+        this.log('info', t('WebDAV request; waiting before retry'), details);
         this.options.onRetry?.(retry);
       },
     );
@@ -77,7 +79,7 @@ export class WebDavClient {
     body?: string | ArrayBuffer,
   ): Promise<HttpResponse> {
     const startedAt = this.now();
-    this.log('info', 'WebDAV request started', { method, path });
+    this.log('info', t('WebDAV request started'), { method, path });
     this.options.onRequest?.(method, path);
     let response: HttpResponse;
 
@@ -90,7 +92,7 @@ export class WebDavClient {
       });
     } catch (error) {
       const code = networkErrorCode(error);
-      this.log('error', 'WebDAV network request failed', {
+      this.log('error', t('WebDAV network request failed'), {
         method,
         path,
         code,
@@ -104,7 +106,7 @@ export class WebDavClient {
       method === 'MKCOL' && response.status === HTTP_STATUS.METHOD_NOT_ALLOWED;
     const failed =
       response.status >= HTTP_STATUS.BAD_REQUEST && !expectedMissingFile && !expectedExistingFolder;
-    this.log(failed ? 'error' : 'info', 'WebDAV response', {
+    this.log(failed ? 'error' : 'info', t('WebDAV response'), {
       method,
       path,
       status: response.status,
@@ -119,6 +121,11 @@ export function requireStatus(response: HttpResponse, accepted: readonly number[
   const authenticationFailed =
     response.status === HTTP_STATUS.UNAUTHORIZED || response.status === HTTP_STATUS.FORBIDDEN;
   throw new Error(
-    `WebDAV: HTTP ${response.status}. ${authenticationFailed ? 'Check your login, app password and WebDAV access.' : 'Resolve the server error and run sync again.'}`,
+    t('WebDAV: HTTP {0}. {1}', {
+      '0': response.status,
+      '1': authenticationFailed
+        ? t('Check your login, app password and WebDAV access.')
+        : t('Resolve the server error and run sync again.'),
+    }),
   );
 }

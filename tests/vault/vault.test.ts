@@ -15,6 +15,10 @@ function setup() {
     getAbstractFileByPath: (path: string) =>
       files.has(path) ? file(path) : folders.has(path) ? { path, children: [] } : null,
     readBinary: async (entry: TFile) => files.get(entry.path),
+    trash: async (entry: TFile, system: boolean) => {
+      assert.equal(system, false);
+      files.delete(entry.path);
+    },
     createBinary: async (path: string, data: ArrayBuffer) => {
       assert.equal(files.has(path), false);
       files.set(path, data);
@@ -122,5 +126,23 @@ test('shares recovery-folder creation during concurrent local replacements', asy
   assert.deepEqual(
     files.get(`.obsidian/plugins/yandex-disk-sync/recovery/${second.hash}`),
     bytes('old b'),
+  );
+});
+
+test('mirror deletion saves recovery bytes and refuses a newer local edit', async () => {
+  const { store, files, bytes } = setup();
+  files.set('note.md', bytes('before'));
+  const old = await store.read('note.md');
+  assert.ok(old);
+  files.set('note.md', bytes('new edit'));
+  await assert.rejects(store.remove('note.md', old), /changed/);
+  assert.ok(files.has('note.md'));
+  const current = await store.read('note.md');
+  assert.ok(current);
+  await store.remove('note.md', current);
+  assert.equal(files.has('note.md'), false);
+  assert.deepEqual(
+    files.get('.obsidian/plugins/yandex-disk-sync/recovery/' + current.hash),
+    bytes('new edit'),
   );
 });

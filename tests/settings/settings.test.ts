@@ -46,6 +46,7 @@ test('validates credentials before starting network requests', () => {
     folder: '/Obsidian/',
   };
   assert.deepEqual(validateSettings(valid), {
+    language: 'ru',
     login: 'user',
     password: 'app password',
     folder: 'Obsidian',
@@ -87,4 +88,24 @@ test('restores independent request limits and supplies defaults for existing ins
       1000,
     );
   }
+});
+
+test('loads old installations with an empty cache and discards corrupt cache entries without losing sync state', () => {
+  const old = loadPluginData(null);
+  assert.deepEqual(Object.keys(old.remoteCache.files), []);
+  const restored = loadPluginData({
+    state: { version: 1, scope: 'account', hashes: { 'a.md': 'a'.repeat(64) } },
+    remoteCache: {
+      version: 1,
+      scope: 'account',
+      files: {
+        'good.md': { etag: 'b'.repeat(32), hash: 'a'.repeat(64), size: 4 },
+        'weak.md': { etag: 'W/"tag"', hash: 'a'.repeat(64), size: 4 },
+        'bad.md': { etag: 'b'.repeat(32), hash: 'invalid', size: 4 },
+        '../unsafe.md': { etag: 'b'.repeat(32), hash: 'a'.repeat(64), size: 4 },
+      },
+    },
+  });
+  assert.deepEqual(Object.keys(restored.remoteCache.files), ['good.md']);
+  assert.equal(restored.state.hashes['a.md'], 'a'.repeat(64));
 });

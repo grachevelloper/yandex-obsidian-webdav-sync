@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 export const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MiB
 const MAX_FILENAME_BYTES = 255;
 const EDGE_SLASHES = /^\/+|\/+$/gu;
@@ -5,11 +6,11 @@ const UNICODE_CANONICAL_FORM = 'NFC';
 
 export function validatePath(path: string): string {
   if (!path || path.startsWith('/') || path.includes('\\') || /[\u0000-\u001f]/u.test(path)) {
-    throw new Error(`Unsafe path: ${path}`);
+    throw new Error(t('Unsafe path: {0}', { '0': path }));
   }
 
   if (path.split('/').some((part) => !part || part === '.' || part === '..')) {
-    throw new Error(`Unsafe path: ${path}`);
+    throw new Error(t('Unsafe path: {0}', { '0': path }));
   }
 
   return path;
@@ -22,6 +23,14 @@ export function isIncluded(path: string, configDir: string): boolean {
     path !== configDir &&
     !path.startsWith(`${configDir}/`) &&
     !path.split('/').some((part) => part.startsWith('.'))
+  );
+}
+
+export function isMirrorServicePath(path: string): boolean {
+  const normalized = path.toLowerCase();
+
+  return ['plugins/yandex-disk-sync', 'sync engine logs', 'webdav sync logs'].some(
+    (folder) => normalized === folder || normalized.startsWith(`${folder}/`),
   );
 }
 
@@ -84,11 +93,16 @@ export function validateFilePaths(paths: Iterable<string>): void {
       const existing = names.get(key);
 
       if (existing && existing !== prefix) {
-        throw new Error(`Path collision on case-insensitive devices: ${existing} / ${prefix}`);
+        throw new Error(
+          t('Path collision on case-insensitive devices: {0} / {1}', {
+            '0': existing,
+            '1': prefix,
+          }),
+        );
       }
 
       if (length < parts.length && files.has(prefix)) {
-        throw new Error(`Path is used as both a file and a folder: ${prefix}`);
+        throw new Error(t('Path is used as both a file and a folder: {0}', { '0': prefix }));
       }
 
       names.set(key, prefix);

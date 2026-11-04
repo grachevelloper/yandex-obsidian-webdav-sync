@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   conflictPath,
   isIncluded,
+  isMirrorServicePath,
   validatePath,
   validateRemoteFolder,
 } from '../../src/shared/paths';
@@ -24,6 +25,24 @@ test('excludes hidden directories and a custom Obsidian configuration directory'
     assert.equal(isIncluded(path, 'custom-config'), false);
   }
   assert.equal(isIncluded('attachments/photo.png', 'custom-config'), true);
+});
+
+test('protects the legacy plugin and log folders without excluding similarly named notes', () => {
+  for (const path of [
+    'plugins/yandex-disk-sync',
+    'Plugins/Yandex-Disk-Sync/main.js',
+    'Sync Engine Logs/run.md',
+    'WebDAV Sync Logs/run.md',
+  ]) {
+    assert.equal(isMirrorServicePath(path), true);
+  }
+  for (const path of [
+    'plugins/another/main.js',
+    'WebDAV Sync Logs.md',
+    'notes/Sync Engine Logs/run.md',
+  ]) {
+    assert.equal(isMirrorServicePath(path), false);
+  }
 });
 
 test('normalizes a dedicated remote folder but refuses the disk root', () => {

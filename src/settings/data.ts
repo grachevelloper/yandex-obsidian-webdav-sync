@@ -1,3 +1,5 @@
+import { t, isLanguagePreference, type LanguagePreference } from '../i18n';
+
 import {
   DEFAULT_TRANSFER_LIMITS,
   isConcurrentRequests,
@@ -5,11 +7,13 @@ import {
   validateTransferLimits,
   type TransferLimits,
 } from '../shared/transfer-limits';
+import { emptyRemoteCache, loadRemoteCache, type RemoteCache } from '../sync/remote-cache';
 import { isObject } from '../shared/objects';
 import { validateRemoteFolder } from '../shared/paths';
 import type { SyncState } from '../sync/types';
 
 export interface Settings extends TransferLimits {
+  language: LanguagePreference;
   login: string;
   password: string;
   folder: string;
@@ -18,6 +22,7 @@ export interface Settings extends TransferLimits {
 export interface PluginData {
   settings: Settings;
   state: SyncState;
+  remoteCache: RemoteCache;
 }
 
 export function scopeFor(settings: Settings): string {
@@ -30,9 +35,10 @@ export function emptyState(scope: string): SyncState {
 
 export function loadPluginData(value: unknown): PluginData {
   if (value !== null && value !== undefined && !isObject(value))
-    throw new Error('Invalid saved settings.');
+    throw new Error(t('Invalid saved settings.'));
 
   const settings: Settings = {
+    language: 'ru',
     login: '',
     password: '',
     folder: 'Obsidian/Personal',
@@ -44,6 +50,8 @@ export function loadPluginData(value: unknown): PluginData {
       const setting = value.settings[key];
       if (typeof setting === 'string') settings[key] = setting;
     }
+
+    if (isLanguagePreference(value.settings.language)) settings.language = value.settings.language;
 
     if (isConcurrentRequests(value.settings.concurrentRequests))
       settings.concurrentRequests = value.settings.concurrentRequests;
@@ -60,24 +68,25 @@ export function loadPluginData(value: unknown): PluginData {
       typeof saved.scope !== 'string' ||
       !isObject(saved.hashes)
     ) {
-      throw new Error('Cannot read sync state. Preserve data.json before recovery.');
+      throw new Error(t('Cannot read sync state. Preserve data.json before recovery.'));
     }
 
     state.scope = saved.scope;
     for (const [path, hash] of Object.entries(saved.hashes)) {
       if (typeof hash !== 'string' || !/^[a-f0-9]{64}$/u.test(hash))
-        throw new Error('Invalid sync state.');
+        throw new Error(t('Invalid sync state.'));
       state.hashes[path] = hash;
     }
   }
 
-  return { settings, state };
+  const remoteCache = isObject(value) ? loadRemoteCache(value.remoteCache) : emptyRemoteCache('');
+  return { settings, state, remoteCache };
 }
 
 export function validateSettings(settings: Settings): Settings {
   const login = settings.login.trim();
   if (!login || !settings.password || login.includes(':')) {
-    throw new Error('Enter your Yandex login and app password in the plugin settings.');
+    throw new Error(t('Enter your Yandex login and app password in the plugin settings.'));
   }
   validateTransferLimits(settings);
   return { ...settings, login, folder: validateRemoteFolder(settings.folder) };

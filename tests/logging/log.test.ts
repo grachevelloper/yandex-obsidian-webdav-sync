@@ -126,3 +126,14 @@ test('persists cancellation separately from success and failure', async () => {
   assert.ok(restored?.finishedAt);
   assert.equal(restored?.result, undefined);
 });
+
+test('a stopped transfer retains completed totals and never claims that no files transferred', async () => {
+  const { repository } = storage();
+  const log = new SyncLog();
+  log.cancel({ uploaded: 1, downloaded: 0, conflicts: [], skipped: [], errors: [] });
+  await repository.save(log.data);
+  const saved = await repository.latest();
+  assert.equal(saved?.outcome, 'cancelled');
+  assert.equal(saved?.result?.uploaded, 1);
+  assert.doesNotMatch(JSON.stringify(saved), /no files transferred/);
+});

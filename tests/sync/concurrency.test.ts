@@ -51,3 +51,15 @@ test('serializes tasks sharing an original or conflict path without blocking ind
   await Promise.all([original, copy]);
   assert.deepEqual(order, ['original', 'other', 'copy']);
 });
+
+test('a persistence failure finishing after cancellation remains the reported failure', async () => {
+  const { SyncCancelled } = await import('../../src/sync/errors');
+  await assert.rejects(
+    runConcurrent([0, 1], 2, async (value) => {
+      if (value === 0) throw new SyncCancelled();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      throw new Error('Disk full');
+    }),
+    /Disk full/,
+  );
+});

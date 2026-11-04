@@ -23,3 +23,30 @@ test('rejects unsafe, malformed, out-of-scope and incomplete listings', () => {
     assert.throws(() => parseListing(xml, 'Obsidian/Тест'));
   }
 });
+
+test('reads ETags from successful property blocks and tolerates unsupported ETags', () => {
+  const tag = 'a'.repeat(32);
+  const base = listing('/Obsidian/Тест/a.md');
+  const xml = base.replace(
+    '</d:response>',
+    `<d:propstat><d:prop><d:getetag>${tag}</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>`,
+  );
+  assert.equal(parseListing(xml, 'Obsidian/Тест')[0]?.revision, `"${tag}"`);
+  const missing = xml.replace(
+    'HTTP/1.1 200 OK</d:status></d:propstat></d:response>',
+    'HTTP/1.1 404 Not Found</d:status></d:propstat></d:response>',
+  );
+  assert.equal(parseListing(missing, 'Obsidian/Тест')[0]?.revision, undefined);
+});
+
+test('conflicting successful ETag properties cannot produce a cache hit', () => {
+  const base = listing('/Obsidian/Тест/a.md');
+  const properties = ['a'.repeat(32), 'b'.repeat(32)]
+    .map(
+      (etag) =>
+        `<d:propstat><d:prop><d:getetag>${etag}</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat>`,
+    )
+    .join('');
+  const xml = base.replace('</d:response>', `${properties}</d:response>`);
+  assert.equal(parseListing(xml, 'Obsidian/Тест')[0]?.revision, undefined);
+});

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { parentPath } from '../shared/paths';
 import type { FileEntry } from '../sync/types';
 import { WebDavClient, requireStatus } from './client';
@@ -49,7 +50,7 @@ export class WebDavFolders {
     this.known.add(path);
   }
 
-  async listFiles(): Promise<FileEntry[]> {
+  async listFiles(requireRoot = false): Promise<FileEntry[]> {
     const queue = [''];
     const visited = new Set<string>();
     const files: FileEntry[] = [];
@@ -59,7 +60,7 @@ export class WebDavFolders {
       if (relative === undefined || visited.has(relative)) continue;
       visited.add(relative);
       if (visited.size > MAX_FOLDERS_PER_SYNC)
-        throw new Error('Too many folders for one sync run.');
+        throw new Error(t('Too many folders for one sync run.'));
 
       const folder = `${this.root}${relative ? `/${relative}` : ''}`;
       const response = await this.client.request(
@@ -68,21 +69,29 @@ export class WebDavFolders {
         { Depth: PROPFIND_CHILDREN_DEPTH, 'Content-Type': 'application/xml; charset=utf-8' },
         PROPFIND_PROPERTIES,
       );
-      if (response.status === HTTP_STATUS.NOT_FOUND && relative === '') return [];
+      if (response.status === HTTP_STATUS.NOT_FOUND && relative === '') {
+        if (requireRoot)
+          throw new Error(t('The source folder does not exist. Mirror sync is blocked.'));
+        return [];
+      }
       requireStatus(response, [HTTP_STATUS.MULTI_STATUS]);
       const entries = parseListing(response.text, this.root);
       if (!entries.some((entry) => entry.path === relative && entry.directory)) {
-        throw new Error('WebDAV did not confirm the selected folder.');
+        throw new Error(t('WebDAV did not confirm the selected folder.'));
       }
 
       this.known.add(folder);
       for (const entry of entries) {
         if (entry.path === relative) continue;
         if (parentPath(entry.path) !== relative)
-          throw new Error('WebDAV returned an invalid folder hierarchy.');
+          throw new Error(t('WebDAV returned an invalid folder hierarchy.'));
         if (!this.include(entry.path)) continue;
         if (!entry.directory) {
-          files.push({ path: entry.path, size: entry.size });
+          files.push({
+            path: entry.path,
+            size: entry.size,
+            ...(entry.revision ? { revision: entry.revision } : {}),
+          });
           continue;
         }
         this.known.add(`${this.root}/${entry.path}`);

@@ -1,16 +1,17 @@
+import { t } from '../i18n';
 import {
   DEFAULT_TRANSFER_LIMITS,
   validateTransferLimits,
   type TransferLimits,
 } from '../shared/transfer-limits';
-import { SyncInterrupted } from '../sync/errors';
+import { checkCancellation, SyncCancelled, SyncInterrupted } from '../sync/errors';
 import type { HttpResponse } from './client';
 import { HTTP_STATUS } from './protocol';
 import { NetworkRequestError } from './network-error';
 
 export interface RequestTiming {
   now(): number;
-  sleep(milliseconds: number): Promise<void>;
+  sleep(milliseconds: number, signal?: AbortSignal): Promise<void>;
 }
 
 export interface RetryInfo {
@@ -22,6 +23,7 @@ export interface RetryInfo {
 
 export interface RequestOptions extends Partial<TransferLimits> {
   timing?: RequestTiming;
+  signal?: AbortSignal;
   onRetry?: (retry: RetryInfo) => void;
   onRequest?: (method: string, path: string) => void;
 }
@@ -34,7 +36,19 @@ const DELAY_SECONDS = /^\d+$/u;
 
 const SYSTEM_TIMING: RequestTiming = {
   now: () => Date.now(),
-  sleep: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  sleep: (milliseconds, signal) =>
+    new Promise((resolve, reject) => {
+      checkCancellation(signal);
+      const abort = () => {
+        clearTimeout(timer);
+        reject(new SyncCancelled());
+      };
+      const timer = setTimeout(() => {
+        signal?.removeEventListener('abort', abort);
+        resolve();
+      }, milliseconds);
+      signal?.addEventListener('abort', abort, { once: true });
+    }),
 };
 
 export class RequestScheduler {
@@ -47,11 +61,11 @@ export class RequestScheduler {
 
   constructor(
     private readonly timing: RequestTiming = SYSTEM_TIMING,
-    limits: Partial<TransferLimits> = {},
+    private readonly options: RequestOptions = {},
   ) {
     this.limits = {
-      concurrentRequests: limits.concurrentRequests ?? DEFAULT_TRANSFER_LIMITS.concurrentRequests,
-      requestIntervalMs: limits.requestIntervalMs ?? DEFAULT_TRANSFER_LIMITS.requestIntervalMs,
+      concurrentRequests: options.concurrentRequests ?? DEFAULT_TRANSFER_LIMITS.concurrentRequests,
+      requestIntervalMs: options.requestIntervalMs ?? DEFAULT_TRANSFER_LIMITS.requestIntervalMs,
     };
     validateTransferLimits(this.limits);
   }
@@ -61,10 +75,12 @@ export class RequestScheduler {
     send: () => Promise<HttpResponse>,
     onRetry: (retry: RetryInfo) => void,
   ): Promise<HttpResponse> {
+    checkCancellation(this.options.signal);
     if (this.occupiedSlots < this.limits.concurrentRequests) this.occupiedSlots++;
     else await new Promise<void>((resolve) => this.slotWaiters.push(resolve));
 
     try {
+      checkCancellation(this.options.signal);
       return await this.sendWithRetries(method, send, onRetry);
     } finally {
       const next = this.slotWaiters.shift();
@@ -77,6 +93,7 @@ export class RequestScheduler {
     const started = this.startQueue.then(async () => {
       await this.waitForSlot();
       if (this.stopped) throw this.stopped;
+      checkCancellation(this.options.signal);
       return { response: send() };
     });
     // Release the start gate while the transport is still running; the active-slot limit remains held.
@@ -111,10 +128,13 @@ export class RequestScheduler {
 
       if (attempt >= MAX_RATE_LIMIT_RETRIES || delayMs > MAX_AUTOMATIC_WAIT_MS) {
         const wait = Number.isFinite(delayMs)
-          ? ` Wait at least ${Math.ceil(delayMs / 1000)} seconds`
-          : ' Wait for the server cooldown';
+          ? t(' Wait at least {0} seconds', { '0': Math.ceil(delayMs / 1000) })
+          : t(' Wait for the server cooldown');
         this.stop(
-          `Yandex Disk rate limit (HTTP 429). Sync stopped to avoid more requests.${wait} before running sync again.`,
+          t(
+            'Yandex Disk rate limit (HTTP 429). Sync stopped to avoid more requests.{0} before running sync again.',
+            { '0': wait },
+          ),
         );
       }
 
@@ -133,7 +153,10 @@ export class RequestScheduler {
 
     if (attempt >= MAX_READ_NETWORK_RETRIES) {
       this.stop(
-        `WebDAV read failed after repeated network interruptions (${error.code}). Sync stopped. Check the connection and run sync again.`,
+        t(
+          'WebDAV read failed after repeated network interruptions ({0}). Sync stopped. Check the connection and run sync again.',
+          { '0': error.code },
+        ),
       );
     }
 
@@ -158,12 +181,32 @@ export class RequestScheduler {
     throw this.stopped;
   }
 
+  private async wait(milliseconds: number): Promise<void> {
+    const signal = this.options.signal;
+    if (!signal) return this.timing.sleep(milliseconds);
+    checkCancellation(signal);
+
+    let removeListener = () => {};
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const abort = () => reject(new SyncCancelled());
+        signal.addEventListener('abort', abort, { once: true });
+        removeListener = () => signal.removeEventListener('abort', abort);
+        this.timing.sleep(milliseconds, signal).then(resolve, reject);
+      });
+    } finally {
+      removeListener();
+    }
+  }
+
   private async waitForSlot(): Promise<void> {
+    checkCancellation(this.options.signal);
     while (this.nextRequestAt > this.timing.now()) {
       if (this.stopped) throw this.stopped;
-      await this.timing.sleep(this.nextRequestAt - this.timing.now());
+      await this.wait(this.nextRequestAt - this.timing.now());
     }
     if (this.stopped) throw this.stopped;
+    checkCancellation(this.options.signal);
     this.nextRequestAt = this.timing.now() + this.limits.requestIntervalMs;
   }
 }

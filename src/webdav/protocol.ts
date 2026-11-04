@@ -18,4 +18,4 @@ export const HTTP_STATUS = {
 export const PROPFIND_CHILDREN_DEPTH = '1';
 export const MAX_FOLDERS_PER_SYNC = 10_000;
 export const PROPFIND_PROPERTIES =
-  '<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/></d:prop></d:propfind>';
+  '<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/><d:getetag/></d:prop></d:propfind>';

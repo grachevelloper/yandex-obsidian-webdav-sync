@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { TFile, Vault } from 'obsidian';
 import { isIncluded, MAX_FILE_BYTES, parentPath, validatePath } from '../shared/paths';
 import { ChangedDuringSync } from '../sync/errors';
@@ -11,28 +12,29 @@ export class VaultStore implements SyncStore {
   constructor(
     private readonly vault: Vault,
     private readonly recoveryFolder: string,
+    private readonly include = (path: string) => isIncluded(path, vault.configDir),
   ) {}
 
   async list(): Promise<FileEntry[]> {
     return this.vault
       .getFiles()
-      .filter((file) => isIncluded(file.path, this.vault.configDir))
+      .filter((file) => this.include(file.path))
       .map((file) => ({ path: file.path, size: file.stat.size }));
   }
 
   async read(path: string): Promise<Snapshot | undefined> {
     const file = this.findFile(path);
     if (!file) return undefined;
-    if (file.stat.size > MAX_FILE_BYTES) throw new Error('File exceeds the 50 MiB limit.');
+    if (file.stat.size > MAX_FILE_BYTES) throw new Error(t('File exceeds the 50 MiB limit.'));
 
     return snapshot(await this.vault.readBinary(file));
   }
 
   async write(path: string, data: ArrayBuffer, expected: Snapshot | undefined): Promise<void> {
     validatePath(path);
-    if (!isIncluded(path, this.vault.configDir))
-      throw new Error('Configuration files are excluded from synchronization.');
-    if (data.byteLength > MAX_FILE_BYTES) throw new Error('File exceeds the 50 MiB limit.');
+    if (!this.include(path))
+      throw new Error(t('Configuration files are excluded from synchronization.'));
+    if (data.byteLength > MAX_FILE_BYTES) throw new Error(t('File exceeds the 50 MiB limit.'));
 
     const current = await this.read(path);
     if (current?.hash !== expected?.hash) throw new ChangedDuringSync(path);
@@ -44,7 +46,7 @@ export class VaultStore implements SyncStore {
       return;
     }
 
-    await this.backup(expected);
+    await this.preserve(expected);
     const file = this.findFile(path);
     if (!file) throw new ChangedDuringSync(path);
 
@@ -63,14 +65,25 @@ export class VaultStore implements SyncStore {
     }
   }
 
+  async remove(path: string, expected: Snapshot): Promise<void> {
+    const current = await this.read(path);
+    if (current?.hash !== expected.hash) throw new ChangedDuringSync(path);
+    await this.preserve(expected);
+    const file = this.findFile(path);
+    if (!file || (await this.read(path))?.hash !== expected.hash) throw new ChangedDuringSync(path);
+
+    // Vault has no conditional delete API; recheck bytes immediately before moving the file to trash.
+    await this.vault.trash(file, false);
+  }
+
   private findFile(path: string): TFile | undefined {
     validatePath(path);
-    if (!isIncluded(path, this.vault.configDir))
-      throw new Error('Configuration files are excluded from synchronization.');
+    if (!this.include(path))
+      throw new Error(t('Configuration files are excluded from synchronization.'));
 
     const file = this.vault.getFileByPath(path);
     if (!file && this.vault.getAbstractFileByPath(path)) {
-      throw new Error(`A folder exists instead of a file: ${path}`);
+      throw new Error(t('A folder exists instead of a file: {0}', { '0': path }));
     }
     return file ?? undefined;
   }
@@ -83,7 +96,7 @@ export class VaultStore implements SyncStore {
       current = current ? `${current}/${part}` : part;
       const existing = this.vault.getAbstractFileByPath(current);
       if (existing && !('children' in existing))
-        throw new Error(`A file exists instead of a folder: ${current}`);
+        throw new Error(t('A file exists instead of a folder: {0}', { '0': current }));
       if (!existing) {
         let creating = this.pendingFolders.get(current);
         if (!creating) {
@@ -99,7 +112,7 @@ export class VaultStore implements SyncStore {
     }
   }
 
-  private async backup(file: Snapshot): Promise<void> {
+  async preserve(file: Snapshot): Promise<void> {
     const ready = (this.recoveryFolderReady ??= this.ensureRecoveryFolder());
     try {
       await ready;

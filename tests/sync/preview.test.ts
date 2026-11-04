@@ -310,3 +310,134 @@ test('preview progress counts skipped and failed files and keeps active paths ac
   assert.deepEqual(updates[0], { phase: 'listing', processed: 0, activePaths: [] });
   assert.deepEqual(updates.at(-1), { phase: 'preview', processed: 3, total: 3, activePaths: [] });
 });
+
+test('stopping preview is not converted into file errors or an approvable plan', async () => {
+  const { local, remote, state } = setup();
+  await local.set('a.md', 'a');
+  await local.set('b.md', 'b');
+  const controller = new AbortController();
+  const reads: string[] = [];
+  remote.read = async (path) => {
+    reads.push(path);
+    controller.abort();
+    return undefined;
+  };
+  await assert.rejects(
+    planSync(local, remote, state, undefined, undefined, 1, controller.signal),
+    /cancelled/i,
+  );
+  assert.deepEqual(reads, ['a.md']);
+  assert.deepEqual(state.hashes, {});
+});
+
+test('stopping during a write preserves its completed baseline and does not start the next file', async () => {
+  const { local, remote, state } = setup();
+  await local.set('a.md', 'a');
+  await local.set('b.md', 'b');
+  const plan = await planSync(local, remote, state);
+  const controller = new AbortController();
+  const write = remote.write.bind(remote);
+  remote.write = async (...args) => {
+    controller.abort();
+    await write(...args);
+  };
+  let checkpoints = 0;
+  await assert.rejects(
+    executePlan(
+      local,
+      remote,
+      state,
+      plan,
+      async () => {
+        checkpoints++;
+      },
+      undefined,
+      undefined,
+      1,
+      controller.signal,
+    ),
+    /cancelled/i,
+  );
+  assert.deepEqual(remote.writes, ['a.md']);
+  assert.equal(state.hashes['a.md'], local.files.get('a.md')?.hash);
+  assert.equal(checkpoints, 1);
+});
+
+test('a cancelled parallel reader cannot discard a completed writer checkpoint', async () => {
+  const { local, remote, state } = setup();
+  await local.set('a.md', 'a');
+  await local.set('b.md', 'b');
+  const plan = await planSync(local, remote, state);
+  const controller = new AbortController();
+  let releaseRead = () => {};
+  let releaseWrite = () => {};
+  const readBlocked = new Promise<void>((resolve) => {
+    releaseRead = resolve;
+  });
+  const writeBlocked = new Promise<void>((resolve) => {
+    releaseWrite = resolve;
+  });
+  const write = remote.write.bind(remote);
+  remote.read = async (path) => {
+    if (path === 'a.md') await readBlocked;
+    return undefined;
+  };
+  remote.write = async (...args) => {
+    await writeBlocked;
+    await write(...args);
+  };
+  let savedHash: string | undefined;
+  const running = executePlan(
+    local,
+    remote,
+    state,
+    plan,
+    async () => {
+      savedHash = state.hashes['b.md'];
+    },
+    undefined,
+    undefined,
+    2,
+    controller.signal,
+  );
+  const rejected = assert.rejects(running, /cancelled/i);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  controller.abort();
+  releaseRead();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  releaseWrite();
+  await rejected;
+  assert.deepEqual(remote.writes, ['b.md']);
+  assert.equal(savedHash, local.files.get('b.md')?.hash);
+});
+
+test('stopping while saving a conflict copy preserves the original and both versions', async () => {
+  const { local, remote, state } = setup();
+  await local.set('a.md', 'local edit');
+  await remote.set('a.md', 'cloud edit');
+  const plan = await planSync(local, remote, state);
+  const controller = new AbortController();
+  const write = local.write.bind(local);
+  local.write = async (...args) => {
+    await write(...args);
+    controller.abort();
+  };
+  await assert.rejects(
+    executePlan(
+      local,
+      remote,
+      state,
+      plan,
+      async () => {},
+      undefined,
+      undefined,
+      1,
+      controller.signal,
+    ),
+    /cancelled/i,
+  );
+  assert.equal(new TextDecoder().decode(local.files.get('a.md')?.data), 'local edit');
+  assert.equal(new TextDecoder().decode(remote.files.get('a.md')?.data), 'cloud edit');
+  assert.equal(remote.writes.length, 0);
+  assert.deepEqual(state.hashes, {});
+});
