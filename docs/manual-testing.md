@@ -34,7 +34,7 @@ Use a dedicated Disk folder and two test vaults. The user connects using their o
 
 ## Request limits
 
-- Open settings from an existing installation without the new fields. Confirm the defaults are 2 concurrent requests and a 1-second interval. Change each independently, restart Obsidian and confirm persistence.
+- Open settings from an existing installation without the new fields. Confirm the defaults are 8 concurrent requests and a 1-second interval. Change each independently, restart Obsidian and confirm persistence.
 - Try 1 request, then 2, against a disposable test vault with slow files. Verify overlap only in the second case; check request-start times in local diagnostics against the chosen interval.
 - Confirm both settings are disabled during preview and confirmed transfers. Invalid intervals must not replace the last valid value.
 - Preview and confirm simultaneous downloads into a new shared folder, uploads into a new cloud folder and an edited conflict resolution. No duplicate-folder errors or extra conflict copies should appear.

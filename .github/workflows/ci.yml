@@ -21,5 +21,6 @@ jobs:
       - run: npm run check
       - uses: actions/upload-artifact@v4
         with:
-          name: yandex-disk-sync
-          path: release/yandex-disk-sync/
+          name: webdav-sync-for-yandex-disk
+          path: release/webdav-sync-for-yandex-disk/
+          if-no-files-found: error

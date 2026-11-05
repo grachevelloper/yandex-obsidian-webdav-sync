@@ -5,7 +5,7 @@ export interface TransferLimits {
 }
 
 export const DEFAULT_TRANSFER_LIMITS: TransferLimits = {
-  concurrentRequests: 2,
+  concurrentRequests: 8,
   requestIntervalMs: 1000,
 };
 
