@@ -41,7 +41,11 @@ export class SyncWindow extends Modal {
   }
 
   show(): void {
-    if (!this.visible) this.open();
+    if (!this.visible) {
+      this.open();
+      // Obsidian focuses the first button after onOpen; restore focus to progress instead.
+      this.view?.bar.focus({ preventScroll: true });
+    }
   }
 
   update(value: SyncProgress): void {
@@ -241,6 +245,7 @@ export class SyncWindow extends Modal {
         });
     }
     this.update(this.progress);
+    this.view.bar.focus({ preventScroll: true });
     this.timer = setInterval(() => this.renderActivity(), 1000);
   }
 

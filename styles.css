@@ -597,8 +597,8 @@
 
 .yds-conflict-input {
   width: 100%;
-  min-height: 30vh;
-  resize: vertical;
+  height: calc(30vh + 50px);
+  resize: none;
   font-family: var(--font-monospace);
   font-size: 13px;
   line-height: 1.7;
@@ -665,7 +665,7 @@
   }
 
   .yds-conflict-input {
-    min-height: 220px;
+    height: 270px;
     font-size: 16px;
   }
 }

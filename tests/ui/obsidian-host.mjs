@@ -19,7 +19,9 @@ export class Modal {
   open() {
     this.openCount++;
     this.isOpen = true;
+    this.app.document.body.append(this.modalEl);
     this.onOpen();
+    this.modalEl.querySelector('button:not([disabled])')?.focus();
   }
   close() {
     this.isOpen = false;

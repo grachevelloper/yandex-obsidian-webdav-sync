@@ -37,10 +37,20 @@ test('hiding and reopening progress preserves counters without opening duplicate
     window.update({ phase: 'preview', processed: 2, total: 5, activePaths: ['a.md', 'b.md'] });
     window.show();
     assert.equal(window.openCount, 1);
+    assert.equal(
+      window.contentEl.ownerDocument.activeElement,
+      window.contentEl.querySelector('[role=progressbar]'),
+    );
+    button('Hide window')?.focus();
+    assert.equal(window.contentEl.ownerDocument.activeElement, button('Hide window'));
     button('Hide window')?.click();
     assert.equal(window.isOpen, false);
     window.show();
     assert.equal(window.openCount, 2);
+    assert.equal(
+      window.contentEl.ownerDocument.activeElement,
+      window.contentEl.querySelector('[role=progressbar]'),
+    );
     assert.match(window.contentEl.textContent, /2 \/ 5 files processed/);
     assert.equal(window.contentEl.querySelectorAll('.yds-active-file').length, 2);
   } finally {
@@ -62,6 +72,10 @@ test('confirmation transitions to progress and then to the report in the same wi
     assert.equal(window.isOpen, true);
     assert.equal(window.openCount, 1);
     assert.equal(window.title, 'Syncing files');
+    assert.equal(
+      window.contentEl.ownerDocument.activeElement,
+      window.contentEl.querySelector('[role=progressbar]'),
+    );
     log.complete({ uploaded: 1, downloaded: 0, conflicts: [], errors: [], skipped: [] });
     window.update({ phase: 'sync', processed: 1, total: 1, activePaths: [] });
     window.finish();

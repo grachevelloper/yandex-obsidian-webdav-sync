@@ -18,6 +18,7 @@ export function renderProgress(container: HTMLElement) {
   container.classList.add('yds-progress');
   const count = create('p', 'yds-progress-count');
   const bar = create('div', 'yds-progress-bar');
+  bar.tabIndex = -1;
   bar.setAttribute('role', 'progressbar');
   bar.setAttribute('aria-valuemin', '0');
   bar.setAttribute('aria-valuemax', '100');
