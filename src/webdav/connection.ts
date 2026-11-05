@@ -10,6 +10,39 @@ export async function checkConnection(
   http: HttpClient,
   options: RequestOptions = {},
 ): Promise<{ folderExists: boolean }> {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  options.signal?.addEventListener('abort', abort, { once: true });
+  if (options.signal?.aborted) abort();
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        reject(
+          new Error(
+            t('Connection check timed out after 30 seconds. Check your network and try again.'),
+          ),
+        );
+        controller.abort();
+      }, 30_000);
+    });
+    return await Promise.race([
+      inspectConnection(connection, http, { ...options, signal: controller.signal }),
+      timeout,
+    ]);
+  } finally {
+    clearTimeout(timer);
+    controller.abort();
+    options.signal?.removeEventListener('abort', abort);
+  }
+}
+
+async function inspectConnection(
+  connection: Connection,
+  http: HttpClient,
+  options: RequestOptions,
+): Promise<{ folderExists: boolean }> {
   const folder = validateRemoteFolder(connection.folder);
   const client = new WebDavClient(connection, http, undefined, options);
 

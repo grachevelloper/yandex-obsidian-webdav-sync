@@ -176,7 +176,9 @@
 }
 
 .yds-preview-modal {
-  width: min(620px, 95vw);
+  width: min(1100px, 95vw);
+  max-width: 95vw;
+  max-height: 90vh;
 }
 
 .yds-preview-modal .modal-title {
@@ -210,7 +212,7 @@
 }
 
 .yds-preview-list {
-  max-height: min(50vh, 420px);
+  max-height: 65vh;
   overflow: auto;
   border: 1px solid var(--background-modifier-border, #e4e6eb);
   border-radius: 6px;
@@ -533,7 +535,7 @@
 }
 
 .yds-conflict-modal {
-  width: min(850px, 95vw);
+  width: min(1400px, 95vw);
 }
 
 .yds-conflict-header,
@@ -595,8 +597,8 @@
 
 .yds-conflict-input {
   width: 100%;
-  min-height: 190px;
-  resize: vertical;
+  height: calc(30vh + 50px);
+  resize: none;
   font-family: var(--font-monospace);
   font-size: 13px;
   line-height: 1.7;
@@ -663,7 +665,7 @@
   }
 
   .yds-conflict-input {
-    min-height: 220px;
+    height: 270px;
     font-size: 16px;
   }
 }

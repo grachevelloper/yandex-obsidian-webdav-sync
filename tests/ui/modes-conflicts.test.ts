@@ -289,7 +289,7 @@ test('Russian mode menu and file editor use translated controls with unchanged m
     await flush();
     assert.equal(window.title, 'Просмотр файла');
     assert.ok(button(window.contentEl, 'Взять обе версии'));
-    assert.ok(button(window.contentEl, 'Применить к плану'));
+    assert.ok(button(window.contentEl, 'Сохранить выбор'));
     assert.doesNotMatch(window.contentEl.textContent, /Use both|Apply to preview|Reading current/);
   } finally {
     window.close();

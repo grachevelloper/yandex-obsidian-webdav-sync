@@ -1,20 +1,19 @@
 # WebDAV Sync for Yandex Disk
 
-![Obsidian](https://img.shields.io/badge/Obsidian-plugin-7C3AED?logo=obsidian&logoColor=white)
-![Yandex Disk](https://img.shields.io/badge/Yandex%20Disk-WebDAV-FFCC00)
-[![License](https://img.shields.io/badge/License-MIT-22C55E)](LICENSE)
-![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20RU-3B82F6)
+Manually sync Obsidian notes and attachments with Yandex Disk on desktop and mobile. Available in English and Russian.
 
-Sync your Obsidian notes and attachments with Yandex Disk. Preview every change before you apply it.
+## Sync modes
 
-- 🔄 **Two-way sync** exchanges changes between your devices and Yandex Disk.
-- 🪞 **Mirror sync** copies files in one direction and shows planned deletions.
-- ✍️ **File review** lets you compare versions, edit notes, resolve conflicts, and skip or mark individual files for deletion.
+- **Two-way:** exchange changes between this device and Disk without automatically propagating deletions.
+- **Device → Disk:** make Disk match this device.
+- **Disk → device:** make this device match Disk.
 
-## Get started
+Preview changes before confirming. Compare versions, edit notes, resolve conflicts, or skip files. Mirror modes can delete destination-only files; explicit deletion removes a file from both sides. Confirmed manual edits are saved on both sides.
 
-1. Download the [release files](https://github.com/grachevelloper/yandex-obsidian-webdav-sync/releases) and place them in `<vault>/.obsidian/plugins/webdav-sync-for-yandex-disk/`. Restart Obsidian and enable the plugin.
-2. Enter your Yandex login, a Files WebDAV app password, and a dedicated Disk folder. Select **Test connection**.
-3. Select **Preview sync**, choose a mode, review the changes, and confirm.
+## Connect and sync
 
-<sub>Files go directly to Yandex Disk. The app password is stored locally as plain text. Diagnostic logs stay on your device.</sub>
+Enter your Yandex login, a **Files WebDAV app password**, and a dedicated Disk folder in the plugin settings. Use the same folder on every device. Select **Test connection**, then **Preview sync**.
+
+**The first sync takes longer:** the plugin reads cloud files to compare them. Later checks reuse cached comparisons for unchanged files. Each device builds its own cache.
+
+Sync runs only when you start it. Files go directly to Yandex Disk. The app password is stored locally as plain text. Recovery copies and diagnostic logs stay on your device. Keep a separate backup of your vault.

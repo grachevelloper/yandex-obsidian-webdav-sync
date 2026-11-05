@@ -1,4 +1,6 @@
 export const russian = {
+  'Connection check timed out after 30 seconds. Check your network and try again.':
+    'Проверка подключения не завершилась за 30 секунд. Проверьте сеть и повторите попытку.',
   'Yandex Disk rejected the write precondition': 'Яндекс Диск отклонил условие записи',
   'Yandex Disk rejected the file version check (HTTP 412): {0}. Prepare a new preview.':
     'Яндекс Диск отклонил проверку версии файла (HTTP 412): {0}. Подготовьте новый предпросмотр.',
@@ -51,8 +53,8 @@ export const russian = {
   'Use the same dedicated folder on your phone and computer, for example Obsidian/Personal.':
     'Укажите одну и ту же отдельную папку на телефоне и компьютере, например Obsidian/Personal.',
   'Concurrent requests': 'Одновременные запросы',
-  'Maximum requests running at once, from 1 to 8. Applies to preview and confirmed sync. Higher values use more memory.':
-    'Максимум одновременных запросов: от 1 до 8. Действует при проверке и передаче файлов. Большие значения требуют больше памяти.',
+  'Maximum requests running at once, from 1 to {0}. Applies to preview and confirmed sync. Higher values use more memory.':
+    'Максимум одновременных запросов: от 1 до {0}. Действует при проверке и передаче файлов. Большие значения требуют больше памяти.',
   'Request start interval (seconds)': 'Интервал между запросами, секунд',
   'Minimum time between starting requests, even when they overlap. From 0.1 to 60 seconds; default 1. Server cooldowns can make the wait longer.':
     'Минимальный интервал между началами запросов, даже если они выполняются параллельно. От 0,1 до 60 секунд; по умолчанию 1. Ограничения сервера могут увеличить ожидание.',
@@ -121,17 +123,17 @@ export const russian = {
     'Локальное хранилище восстановления недоступно. Замена не выполнялась.',
   'No file is selected.': 'Файл не выбран.',
   'Could not read file versions.': 'Не удалось прочитать версии файла.',
-  'Apply to preview': 'Применить к плану',
-  'Mark resolved': 'Отметить решённым',
+  'Apply to preview': 'Сохранить выбор',
+  'Mark resolved': 'Подтвердить выбор',
   ' resolved · no files saved yet': ' решено · файлы ещё не сохранены',
   'Previous conflict': 'Предыдущий конфликт',
   'Next conflict': 'Следующий конфликт',
   'Conflict versions': 'Версии файла',
   'Yandex Disk': 'Яндекс Диск',
   'Reading current versions…': 'Чтение текущих версий…',
-  'Local · this device': 'Локальная версия · это устройство',
-  'Incoming · Yandex Disk': 'Входящая версия · Яндекс Диск',
-  'Use local': 'Взять локальную',
+  'Local · this device': 'Версия на устройстве',
+  'Incoming · Yandex Disk': 'Версия на Яндекс Диске',
+  'Use local': 'Взять с устройства',
   'Use Disk': 'Взять с Диска',
   'Not present on this side': 'На этой стороне файла нет',
   'Attachment · ': 'Вложение · ',
@@ -152,9 +154,9 @@ export const russian = {
   'Cancel run': 'Отменить запуск',
   'Skip file': 'Пропустить файл',
   'Use both': 'Взять обе версии',
-  'Review & save…': 'Проверить и сохранить…',
+  'Review & save…': 'Вернуться к плану',
   'Apply to preview stages your choice. Files change only after final confirmation.':
-    'Применение к плану сохраняет ваш выбор. Файлы изменятся только после окончательного подтверждения.',
+    'Ваш выбор сохранится в плане синхронизации. Файлы изменятся только после подтверждения плана.',
   'Sync log': 'Журнал синхронизации',
   'Stored only on this device. Includes file paths and HTTP statuses; no passwords, authorization headers or file contents.':
     'Хранится только на этом устройстве. Содержит пути файлов и HTTP-статусы, но не пароли, заголовки авторизации и содержимое файлов.',
@@ -171,11 +173,11 @@ export const russian = {
   '↑ Yandex Disk · ↓ This device': '↑ Яндекс Диск · ↓ Это устройство',
   '↑ Yandex Disk · ↓ This device · No files will be deleted.':
     '↑ Яндекс Диск · ↓ Это устройство · Файлы не будут удалены.',
-  'Stage deletion from both sides': 'Добавить удаление с обеих сторон в план',
+  'Stage deletion from both sides': 'Удалить с устройства и Диска',
   'Deletion staged. Apply a version or skip the file to cancel it.':
-    'Удаление в плане. Чтобы отменить его, примени версию или пропусти файл.',
-  'Files marked for deletion from both sides: {0}': 'К удалению с обеих сторон: {0}',
-  'Delete from both sides': 'Удалить с обеих сторон',
+    'Файл отмечен для удаления. Чтобы отменить удаление, выберите версию файла или пропустите его.',
+  'Files marked for deletion from both sides: {0}': 'К удалению с устройства и Диска: {0}',
+  'Delete from both sides': 'Удалить с устройства и Диска',
   'After confirmation, delete existing versions from the device and Yandex Disk.':
     'После подтверждения удалить существующие версии с устройства и Яндекс Диска.',
   'Skipped files are excluded. The destination will not be an exact copy.':

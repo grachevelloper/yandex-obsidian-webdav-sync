@@ -89,7 +89,8 @@ export class SyncSettingsTab extends PluginSettingTab {
       .setName(t('Concurrent requests'))
       .setDesc(
         t(
-          'Maximum requests running at once, from 1 to 8. Applies to preview and confirmed sync. Higher values use more memory.',
+          'Maximum requests running at once, from 1 to {0}. Applies to preview and confirmed sync. Higher values use more memory.',
+          { '0': MAX_CONCURRENT_REQUESTS },
         ),
       )
       .addDropdown((dropdown) => {

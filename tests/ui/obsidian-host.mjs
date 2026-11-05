@@ -19,7 +19,9 @@ export class Modal {
   open() {
     this.openCount++;
     this.isOpen = true;
+    this.app.document.body.append(this.modalEl);
     this.onOpen();
+    this.modalEl.querySelector('button:not([disabled])')?.focus();
   }
   close() {
     this.isOpen = false;
@@ -58,3 +60,41 @@ export class ProgressBarComponent {
     return this;
   }
 }
+
+export const notices = [];
+export const http = {
+  send: async () => {
+    throw new Error('Unexpected request');
+  },
+};
+export const requestUrl = (request) => http.send(request);
+export const getLanguage = () => 'en';
+export const addIcon = () => {};
+export const setTooltip = () => {};
+export class Notice {
+  constructor(message) {
+    notices.push(message);
+  }
+}
+export class Plugin {
+  constructor(app, manifest) {
+    this.app = app;
+    this.manifest = manifest;
+  }
+  async loadData() {
+    return null;
+  }
+  addCommand(command) {
+    return command;
+  }
+  addSettingTab() {}
+  addStatusBarItem() {
+    return { setText() {} };
+  }
+  addRibbonIcon() {
+    return {};
+  }
+  registerDomEvent() {}
+}
+export class PluginSettingTab {}
+export class Setting {}

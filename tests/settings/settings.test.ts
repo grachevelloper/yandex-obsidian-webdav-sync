@@ -8,6 +8,7 @@ test('loads defaults without sharing the state map', () => {
   first.state.hashes['a.md'] = 'a'.repeat(64);
   assert.deepEqual(Object.keys(second.state.hashes), []);
   assert.equal(first.settings.folder, 'Obsidian/Personal');
+  assert.equal(first.settings.concurrentRequests, 8);
 });
 
 test('restores saved hashes and credentials while rejecting damaged state', () => {
@@ -50,7 +51,7 @@ test('validates credentials before starting network requests', () => {
     login: 'user',
     password: 'app password',
     folder: 'Obsidian',
-    concurrentRequests: 2,
+    concurrentRequests: 8,
     requestIntervalMs: 1000,
   });
   for (const settings of [
@@ -65,7 +66,7 @@ test('validates credentials before starting network requests', () => {
 
 test('restores independent request limits and supplies defaults for existing installations', () => {
   const defaults = loadPluginData({ settings: { login: 'old-user' } }).settings;
-  assert.equal(defaults.concurrentRequests, 2);
+  assert.equal(defaults.concurrentRequests, 8);
   assert.equal(defaults.requestIntervalMs, 1000);
   const saved = loadPluginData({
     settings: { concurrentRequests: 4, requestIntervalMs: 2500 },
@@ -76,10 +77,10 @@ test('restores independent request limits and supplies defaults for existing ins
     scopeFor(saved),
     scopeFor({ ...saved, concurrentRequests: 1, requestIntervalMs: 100 }),
   );
-  for (const value of [0, -1, 9, 1.5, '2', null]) {
+  for (const value of [0, -1, 17, 1.5, '2', null]) {
     assert.equal(
       loadPluginData({ settings: { concurrentRequests: value } }).settings.concurrentRequests,
-      2,
+      8,
     );
   }
   for (const value of [0, -100, 60001, 100.5, '1000', null]) {
@@ -108,4 +109,15 @@ test('loads old installations with an empty cache and discards corrupt cache ent
   });
   assert.deepEqual(Object.keys(restored.remoteCache.files), ['good.md']);
   assert.equal(restored.state.hashes['a.md'], 'a'.repeat(64));
+});
+
+test('accepts up to sixteen simultaneous requests', () => {
+  const settings = {
+    ...loadPluginData(null).settings,
+    login: 'user',
+    password: 'app password',
+    concurrentRequests: 16,
+  };
+  assert.equal(loadPluginData({ settings }).settings.concurrentRequests, 16);
+  assert.equal(validateSettings(settings).concurrentRequests, 16);
 });
