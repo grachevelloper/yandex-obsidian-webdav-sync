@@ -1,4 +1,6 @@
 export const russian = {
+  'Connection check timed out after 30 seconds. Check your network and try again.':
+    'Проверка подключения не завершилась за 30 секунд. Проверьте сеть и повторите попытку.',
   'Yandex Disk rejected the write precondition': 'Яндекс Диск отклонил условие записи',
   'Yandex Disk rejected the file version check (HTTP 412): {0}. Prepare a new preview.':
     'Яндекс Диск отклонил проверку версии файла (HTTP 412): {0}. Подготовьте новый предпросмотр.',
@@ -51,8 +53,8 @@ export const russian = {
   'Use the same dedicated folder on your phone and computer, for example Obsidian/Personal.':
     'Укажите одну и ту же отдельную папку на телефоне и компьютере, например Obsidian/Personal.',
   'Concurrent requests': 'Одновременные запросы',
-  'Maximum requests running at once, from 1 to 8. Applies to preview and confirmed sync. Higher values use more memory.':
-    'Максимум одновременных запросов: от 1 до 8. Действует при проверке и передаче файлов. Большие значения требуют больше памяти.',
+  'Maximum requests running at once, from 1 to {0}. Applies to preview and confirmed sync. Higher values use more memory.':
+    'Максимум одновременных запросов: от 1 до {0}. Действует при проверке и передаче файлов. Большие значения требуют больше памяти.',
   'Request start interval (seconds)': 'Интервал между запросами, секунд',
   'Minimum time between starting requests, even when they overlap. From 0.1 to 60 seconds; default 1. Server cooldowns can make the wait longer.':
     'Минимальный интервал между началами запросов, даже если они выполняются параллельно. От 0,1 до 60 секунд; по умолчанию 1. Ограничения сервера могут увеличить ожидание.',

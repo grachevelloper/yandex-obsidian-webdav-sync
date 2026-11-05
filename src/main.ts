@@ -162,6 +162,7 @@ export default class WebDavSync extends Plugin {
       this.connectionResult =
         error instanceof Error ? error.message : t('Connection check failed.');
     } finally {
+      new Notice(this.connectionResult);
       this.checkingConnection = false;
       this.settingsTab?.refreshActivity();
     }

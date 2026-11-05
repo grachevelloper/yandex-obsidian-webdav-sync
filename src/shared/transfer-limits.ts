@@ -9,7 +9,7 @@ export const DEFAULT_TRANSFER_LIMITS: TransferLimits = {
   requestIntervalMs: 1000,
 };
 
-export const MAX_CONCURRENT_REQUESTS = 8;
+export const MAX_CONCURRENT_REQUESTS = 16;
 
 export function isConcurrentRequests(value: unknown): value is number {
   return (

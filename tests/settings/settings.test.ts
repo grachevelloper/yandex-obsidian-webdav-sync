@@ -76,7 +76,7 @@ test('restores independent request limits and supplies defaults for existing ins
     scopeFor(saved),
     scopeFor({ ...saved, concurrentRequests: 1, requestIntervalMs: 100 }),
   );
-  for (const value of [0, -1, 9, 1.5, '2', null]) {
+  for (const value of [0, -1, 17, 1.5, '2', null]) {
     assert.equal(
       loadPluginData({ settings: { concurrentRequests: value } }).settings.concurrentRequests,
       2,
@@ -108,4 +108,15 @@ test('loads old installations with an empty cache and discards corrupt cache ent
   });
   assert.deepEqual(Object.keys(restored.remoteCache.files), ['good.md']);
   assert.equal(restored.state.hashes['a.md'], 'a'.repeat(64));
+});
+
+test('accepts up to sixteen simultaneous requests', () => {
+  const settings = {
+    ...loadPluginData(null).settings,
+    login: 'user',
+    password: 'app password',
+    concurrentRequests: 16,
+  };
+  assert.equal(loadPluginData({ settings }).settings.concurrentRequests, 16);
+  assert.equal(validateSettings(settings).concurrentRequests, 16);
 });
