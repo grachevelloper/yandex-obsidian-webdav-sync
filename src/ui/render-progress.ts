@@ -2,7 +2,7 @@ import { t } from '../i18n';
 import type { SyncProgress } from '../sync/progress';
 
 export function renderProgress(container: HTMLElement) {
-  const fragment = container.ownerDocument.createDocumentFragment();
+  const fragment = container.ownerDocument.adoptNode(createFragment());
   const create = <K extends keyof HTMLElementTagNameMap>(
     tag: K,
     className: string,

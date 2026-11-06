@@ -4,8 +4,22 @@ Use Node.js 24 and a separate task branch and worktree. Install dependencies wit
 `npm ci`, then run `npm run check` before submitting changes. This checks formatting,
 the official Obsidian lint rules, behavior tests, TypeScript types and the
 browser-compatible plugin build. `npm run lint` rejects warnings as well as errors.
-The minimatch overrides keep the lint dependencies on the patched release for
-GHSA-g3hv-75wg-m249; remove them when both upstream dependencies require it.
+
+`npm run lint:community` runs the official Obsidian rules pinned to 0.4.2, which
+reproduce the two unsupported-API findings and four DOM-helper warnings from the
+1.0.3 Community scorecard. `npm run lint:recommended` also runs the newer rules.
+Both run in CI. The rules cover source analysis; they do not reproduce the entire
+hosted scorecard or its unavailable malware and network scans. See the official
+[scanner configuration](https://github.com/obsidianmd/eslint-plugin/blob/master/docs/configuration.md#community-plugin-scanner-configuration).
+
+Tagged releases are checked and built in `Release build`. The tag must match the
+manifest version. The workflow signs provenance attestations for all three plugin
+files before uploading the build. Publish those exact files and verify them with
+`gh attestation verify <file> --repo grachevelloper/yandex-obsidian-webdav-sync`.
+
+The dependency overrides keep scanner dependencies on patched minimatch and moment
+versions (GHSA-g3hv-75wg-m249 and GHSA-4p3w-j4w9-5jqw). Remove them when the
+upstream scanner dependencies require patched versions themselves.
 
 Follow [AGENTS.md](AGENTS.md). Extend the existing tests for the behavior you change.
 Runtime code must work on desktop, Android and iOS without Node.js or Electron APIs.

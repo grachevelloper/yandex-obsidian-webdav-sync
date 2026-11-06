@@ -18,7 +18,16 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: npm run check
+      - name: Check formatting
+        run: npm run format:check
+      - name: Community scanner rules
+        run: npm run lint:community
+      - name: Current recommended rules
+        run: npm run lint:recommended
+      - name: Tests
+        run: npm test
+      - name: Build
+        run: npm run build
       - uses: actions/upload-artifact@v4
         with:
           name: webdav-sync-for-yandex-disk

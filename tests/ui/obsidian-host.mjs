@@ -62,6 +62,9 @@ export const http = {
 };
 export const requestUrl = (request) => http.send(request);
 export const getLanguage = () => 'en';
+export const hostApi = { version: '1.8.7' };
+export const requireApiVersion = (version) =>
+  hostApi.version.localeCompare(version, 'en', { numeric: true }) >= 0;
 export const addIcon = () => {};
 export const setTooltip = () => {};
 export class Notice {

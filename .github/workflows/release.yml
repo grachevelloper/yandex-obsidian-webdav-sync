@@ -1,0 +1,34 @@
+name: Release build
+
+on:
+  push:
+    tags: ['*']
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Check release version
+        run: test "$(node -p "require('./manifest.json').version")" = "$GITHUB_REF_NAME"
+      - run: npm ci
+      - name: Check and build
+        run: npm run check
+      - name: Attest release files
+        uses: actions/attest@v4
+        with:
+          subject-path: release/webdav-sync-for-yandex-disk/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: webdav-sync-for-yandex-disk-${{ github.ref_name }}
+          path: release/webdav-sync-for-yandex-disk/
+          if-no-files-found: error

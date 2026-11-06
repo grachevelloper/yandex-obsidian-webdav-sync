@@ -2,6 +2,8 @@ import { JSDOM } from 'jsdom';
 
 export function createDom(...options: ConstructorParameters<typeof JSDOM>) {
   const dom = new JSDOM(...options);
+  dom.window.createFragment = () => dom.window.document.createDocumentFragment();
+  globalThis.createFragment = () => dom.window.createFragment();
   Object.defineProperties(dom.window.Node.prototype, {
     createEl: {
       value(this: Node, tag: string, options: DomElementInfo = {}) {

@@ -146,7 +146,11 @@ test('state and cache dictionaries retain special filenames as own keys', () => 
 });
 
 const settingsBundle = await build({
-  entryPoints: [path.resolve('src/settings/tab.ts')],
+  stdin: {
+    contents: `export { SyncSettingsTab } from './src/settings/tab';
+      export { hostApi } from './tests/ui/obsidian-host.mjs';`,
+    resolveDir: process.cwd(),
+  },
   bundle: true,
   write: false,
   platform: 'node',
@@ -155,7 +159,7 @@ const settingsBundle = await build({
 });
 const settingsOutput = settingsBundle.outputFiles[0];
 assert.ok(settingsOutput);
-const { SyncSettingsTab } = await import(
+const { SyncSettingsTab, hostApi } = await import(
   'data:text/javascript;base64,' + Buffer.from(settingsOutput.contents).toString('base64')
 );
 
@@ -295,7 +299,12 @@ test('modern settings use host updates and release activity callbacks when rows 
   tab.update = () => {
     hostUpdates++;
   };
-  tab.refresh();
+  hostApi.version = '1.13.0';
+  try {
+    tab.refresh();
+  } finally {
+    hostApi.version = '1.8.7';
+  }
   assert.equal(hostUpdates, 1);
   assert.equal(tab.containerEl.children.length, 0);
 });
@@ -310,4 +319,13 @@ test('closing legacy settings releases activity updates for detached controls', 
   plugin.running = true;
   tab.refreshActivity();
   assert.equal(login.disabled, false);
+});
+
+test('settings refresh on older Obsidian uses the legacy renderer even when update exists', () => {
+  const { tab } = settingsFixture();
+  tab.update = () => {
+    throw new Error('The declarative update API requires Obsidian 1.13.0');
+  };
+  tab.refresh();
+  assert.equal(tab.containerEl.querySelectorAll('input').length, 4);
 });

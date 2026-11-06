@@ -10,7 +10,7 @@ export default defineConfig([
     'tests/**',
     'scripts/**',
     'esbuild.config.mjs',
-    'eslint.config.mjs',
+    'eslint*.config.mjs',
   ]),
   ...obsidianmd.configs.recommended,
   {

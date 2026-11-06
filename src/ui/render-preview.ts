@@ -8,7 +8,7 @@ export function renderPreview(
   plan: SyncPlan,
   openFile?: (entry: PlanEntry) => void,
 ) {
-  const fragment = container.ownerDocument.createDocumentFragment();
+  const fragment = container.ownerDocument.adoptNode(createFragment());
   const create = <K extends keyof HTMLElementTagNameMap>(
     tag: K,
     className: string,

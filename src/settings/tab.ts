@@ -1,5 +1,5 @@
 import { t, isLanguagePreference } from '../i18n';
-import { PluginSettingTab, Setting } from 'obsidian';
+import { PluginSettingTab, requireApiVersion, Setting } from 'obsidian';
 
 import { isRequestIntervalMs, MAX_CONCURRENT_REQUESTS } from '../shared/transfer-limits';
 import type WebDavSync from '../main';
@@ -20,7 +20,7 @@ export class SyncSettingsTab extends PluginSettingTab {
   }
 
   refresh(): void {
-    if (typeof this.update === 'function') this.update();
+    if (requireApiVersion('1.13.0')) this.update();
     else this.renderLegacy();
   }
 

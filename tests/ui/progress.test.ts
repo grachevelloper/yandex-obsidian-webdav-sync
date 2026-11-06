@@ -41,3 +41,16 @@ test('shows unknown totals honestly, parallel file names safely and an empty run
   assert.equal(view.percent(), 100);
   assert.doesNotMatch(container.textContent ?? '', /GRACHEVELOPER/);
 });
+
+test('progress adopts Obsidian helper fragments into the container document', () => {
+  const dom = createDom('<main></main>');
+  const container = dom.window.document.querySelector('main');
+  assert.ok(container);
+  const otherWindow = createDom();
+  const fragment = otherWindow.window.document.createDocumentFragment();
+  otherWindow.window.createFragment = () => fragment;
+
+  renderProgress(container);
+  assert.equal(fragment.ownerDocument, dom.window.document);
+  assert.equal(container.querySelector('.yds-progress-bar')?.ownerDocument, dom.window.document);
+});

@@ -48,7 +48,7 @@ export function renderFileReview(
   view: FileReviewView,
   actions: FileReviewActions,
 ): void {
-  const fragment = container.ownerDocument.createDocumentFragment();
+  const fragment = container.ownerDocument.adoptNode(createFragment());
   const create = <K extends keyof HTMLElementTagNameMap>(
     tag: K,
     className: string,
