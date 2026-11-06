@@ -40,7 +40,10 @@ export class PathQueue {
 
   async run<T>(paths: string[], process: () => Promise<T>): Promise<T> {
     const keys = [...new Set(paths)];
-    const previous = keys.map((path) => this.pending.get(path));
+    const previous = keys.flatMap((path) => {
+      const pending = this.pending.get(path);
+      return pending ? [pending] : [];
+    });
     let release = () => {};
     const done = new Promise<void>((resolve) => {
       release = resolve;

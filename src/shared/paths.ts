@@ -5,7 +5,12 @@ const EDGE_SLASHES = /^\/+|\/+$/gu;
 const UNICODE_CANONICAL_FORM = 'NFC';
 
 export function validatePath(path: string): string {
-  if (!path || path.startsWith('/') || path.includes('\\') || /[\u0000-\u001f]/u.test(path)) {
+  if (
+    !path ||
+    path.startsWith('/') ||
+    path.includes('\\') ||
+    Array.from(path).some((character) => character.charCodeAt(0) < 32)
+  ) {
     throw new Error(t('Unsafe path: {0}', { '0': path }));
   }
 

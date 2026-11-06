@@ -40,10 +40,10 @@ const SYSTEM_TIMING: RequestTiming = {
     new Promise((resolve, reject) => {
       checkCancellation(signal);
       const abort = () => {
-        clearTimeout(timer);
+        window.clearTimeout(timer);
         reject(new SyncCancelled());
       };
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         signal?.removeEventListener('abort', abort);
         resolve();
       }, milliseconds);

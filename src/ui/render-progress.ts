@@ -2,16 +2,13 @@ import { t } from '../i18n';
 import type { SyncProgress } from '../sync/progress';
 
 export function renderProgress(container: HTMLElement) {
-  const document = container.ownerDocument;
+  const fragment = container.ownerDocument.createDocumentFragment();
   const create = <K extends keyof HTMLElementTagNameMap>(
     tag: K,
     className: string,
     text?: string,
   ) => {
-    const element = document.createElement(tag);
-    element.className = className;
-    if (text !== undefined) element.textContent = text;
-    return element;
+    return fragment.createEl(tag, { cls: className, text });
   };
 
   container.replaceChildren();

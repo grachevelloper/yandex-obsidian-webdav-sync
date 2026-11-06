@@ -30,7 +30,9 @@ export function scopeFor(settings: Settings): string {
 }
 
 export function emptyState(scope: string): SyncState {
-  return { version: 1, scope, hashes: Object.create(null) };
+  const hashes: Record<string, string> = {};
+  Object.setPrototypeOf(hashes, null);
+  return { version: 1, scope, hashes };
 }
 
 export function loadPluginData(value: unknown): PluginData {

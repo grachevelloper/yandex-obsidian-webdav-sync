@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { JSDOM } from 'jsdom';
+import { createDom } from './dom';
 import { renderPreview } from '../../src/ui/render-preview';
 
 test('explains direction, conflicts and restoration without exposing a delete action', () => {
-  const dom = new JSDOM('<main></main>');
+  const dom = createDom('<main></main>');
   const container = dom.window.document.querySelector('main');
   assert.ok(container);
   renderPreview(container, {
@@ -37,7 +37,7 @@ test('explains direction, conflicts and restoration without exposing a delete ac
 });
 
 test('blocks confirmation of incomplete previews and displays the failed path', () => {
-  const dom = new JSDOM('<main></main>');
+  const dom = createDom('<main></main>');
   const container = dom.window.document.querySelector('main');
   assert.ok(container);
   const view = renderPreview(container, {
@@ -51,7 +51,7 @@ test('blocks confirmation of incomplete previews and displays the failed path', 
 });
 
 test('groups files into collapsible folders with compact action columns', () => {
-  const dom = new JSDOM('<main></main>');
+  const dom = createDom('<main></main>');
   const container = dom.window.document.querySelector('main');
   assert.ok(container);
   renderPreview(container, {
@@ -86,7 +86,7 @@ test('groups files into collapsible folders with compact action columns', () => 
 });
 
 test('hides unchanged files by default and lets the user include them without changing the plan', () => {
-  const dom = new JSDOM('<main></main>');
+  const dom = createDom('<main></main>');
   const container = dom.window.document.querySelector('main');
   assert.ok(container);
   const entries = [

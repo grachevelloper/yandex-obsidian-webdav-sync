@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { JSDOM } from 'jsdom';
+import { createDom } from './dom';
 import { FileProgress } from '../../src/sync/progress';
 import { renderProgress } from '../../src/ui/render-progress';
 import type { SyncProgress } from '../../src/sync/progress';
@@ -25,7 +25,7 @@ test('counts completed files independently of concurrently active files', () => 
 });
 
 test('shows unknown totals honestly, parallel file names safely and an empty run as complete', () => {
-  const dom = new JSDOM('<main></main>');
+  const dom = createDom('<main></main>');
   const container = dom.window.document.querySelector('main');
   assert.ok(container);
   const view = renderProgress(container);

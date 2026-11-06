@@ -1,12 +1,26 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { TFile, Vault } from 'obsidian';
+import type { FileManager, TFile, Vault } from 'obsidian';
 import { VaultStore } from '../../src/vault/store';
 import { snapshot } from '../../src/sync/snapshot';
 
 function setup() {
   const files = new Map<string, ArrayBuffer>();
   const folders = new Set<string>();
+  const trashed: string[] = [];
+  const fileManager = {
+    trashFile: async (entry: TFile) => {
+      const data = files.get(entry.path);
+      assert.ok(data);
+      const before = await snapshot(data);
+      assert.deepEqual(
+        files.get('.obsidian/plugins/yandex-disk-sync/recovery/' + before.hash),
+        data,
+      );
+      trashed.push(entry.path);
+      files.delete(entry.path);
+    },
+  };
   const file = (path: string) => ({ path, stat: { size: files.get(path)?.byteLength ?? 0 } });
   const vault = {
     configDir: '.obsidian',
@@ -15,9 +29,8 @@ function setup() {
     getAbstractFileByPath: (path: string) =>
       files.has(path) ? file(path) : folders.has(path) ? { path, children: [] } : null,
     readBinary: async (entry: TFile) => files.get(entry.path),
-    trash: async (entry: TFile, system: boolean) => {
-      assert.equal(system, false);
-      files.delete(entry.path);
+    trash: async () => {
+      throw new Error('Deletion must respect the Obsidian trash preference');
     },
     createBinary: async (path: string, data: ArrayBuffer) => {
       assert.equal(files.has(path), false);
@@ -52,11 +65,12 @@ function setup() {
   // Obsidian supplies the remaining host APIs; the test implements only the exercised surface.
   const store = new VaultStore(
     vault as unknown as Vault,
+    fileManager as unknown as FileManager,
     '.obsidian/plugins/yandex-disk-sync/recovery',
   );
   const bytes = (value: string) => new TextEncoder().encode(value).buffer;
 
-  return { store, files, bytes };
+  return { store, files, bytes, trashed };
 }
 
 test('creates nested notes and preserves binary bytes', async () => {
@@ -129,18 +143,20 @@ test('shares recovery-folder creation during concurrent local replacements', asy
   );
 });
 
-test('mirror deletion saves recovery bytes and refuses a newer local edit', async () => {
-  const { store, files, bytes } = setup();
+test('mirror deletion preserves recovery bytes and uses the configured trash after checking edits', async () => {
+  const { store, files, bytes, trashed } = setup();
   files.set('note.md', bytes('before'));
   const old = await store.read('note.md');
   assert.ok(old);
   files.set('note.md', bytes('new edit'));
   await assert.rejects(store.remove('note.md', old), /changed/);
   assert.ok(files.has('note.md'));
+  assert.deepEqual(trashed, []);
   const current = await store.read('note.md');
   assert.ok(current);
   await store.remove('note.md', current);
   assert.equal(files.has('note.md'), false);
+  assert.deepEqual(trashed, ['note.md']);
   assert.deepEqual(
     files.get('.obsidian/plugins/yandex-disk-sync/recovery/' + current.hash),
     bytes('new edit'),

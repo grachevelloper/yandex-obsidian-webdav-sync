@@ -15,7 +15,9 @@ export interface RemoteCache {
 }
 
 export function emptyRemoteCache(scope: string): RemoteCache {
-  return { version: 1, scope, files: Object.create(null) };
+  const files: Record<string, CachedRemoteFile> = {};
+  Object.setPrototypeOf(files, null);
+  return { version: 1, scope, files };
 }
 
 export function loadRemoteCache(value: unknown): RemoteCache {

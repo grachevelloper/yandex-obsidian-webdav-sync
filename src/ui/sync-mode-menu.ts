@@ -48,22 +48,16 @@ export class SyncModeMenu extends Modal {
         ),
       },
     ];
-    const document = this.contentEl.ownerDocument;
     for (const option of options) {
-      const button = document.createElement('button');
+      const button = this.contentEl.createEl('button', { cls: 'yds-mode-option' });
       button.type = 'button';
-      button.className = 'yds-mode-option';
       button.dataset.syncMode = option.mode;
-      const label = document.createElement('strong');
-      label.textContent = option.label;
-      const description = document.createElement('span');
-      description.textContent = option.description;
-      button.append(label, description);
+      button.createEl('strong', { text: option.label });
+      button.createSpan({ text: option.description });
       button.addEventListener('click', () => {
         this.settle(option.mode);
         this.close();
       });
-      this.contentEl.append(button);
     }
     this.contentEl.createEl('p', {
       cls: 'yds-mode-hint',

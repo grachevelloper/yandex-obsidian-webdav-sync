@@ -3,13 +3,6 @@ export class Modal {
     this.app = app;
     this.modalEl = app.document.createElement('section');
     this.contentEl = app.document.createElement('div');
-    this.contentEl.createEl = (tag, options) => {
-      const element = app.document.createElement(tag);
-      element.className = options.cls ?? '';
-      element.textContent = options.text ?? '';
-      this.contentEl.append(element);
-      return element;
-    };
     this.modalEl.append(this.contentEl);
     this.openCount = 0;
   }
@@ -96,5 +89,63 @@ export class Plugin {
   }
   registerDomEvent() {}
 }
-export class PluginSettingTab {}
-export class Setting {}
+export class PluginSettingTab {
+  constructor(app, plugin) {
+    this.app = app;
+    this.plugin = plugin;
+    this.containerEl = app.document?.createElement('section');
+  }
+  hide() {}
+}
+
+class InputComponent {
+  constructor(container, tag) {
+    this.inputEl = container.createEl(tag);
+  }
+  setValue(value) {
+    this.inputEl.value = value;
+    return this;
+  }
+  setDisabled(disabled) {
+    this.inputEl.disabled = disabled;
+    return this;
+  }
+  addOption(value, label) {
+    const option = this.inputEl.createEl('option', { text: label });
+    option.value = value;
+    return this;
+  }
+  onChange(callback) {
+    this.inputEl.addEventListener('change', () => callback(this.inputEl.value));
+    return this;
+  }
+}
+
+export class Setting {
+  constructor(container) {
+    this.settingEl = container.createEl('div');
+    this.nameEl = this.settingEl.createEl('div');
+    this.descEl = this.settingEl.createEl('div');
+    this.controlEl = this.settingEl.createEl('div');
+  }
+  setName(name) {
+    this.nameEl.textContent = name;
+    return this;
+  }
+  setDesc(desc) {
+    this.descEl.replaceChildren(desc);
+    return this;
+  }
+  addText(callback) {
+    callback(new InputComponent(this.controlEl, 'input'));
+    return this;
+  }
+  addDropdown(callback) {
+    callback(new InputComponent(this.controlEl, 'select'));
+    return this;
+  }
+  addButton(callback) {
+    callback(new ButtonComponent(this.controlEl));
+    return this;
+  }
+}

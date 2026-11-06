@@ -15,10 +15,10 @@ export async function checkConnection(
   options.signal?.addEventListener('abort', abort, { once: true });
   if (options.signal?.aborted) abort();
 
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timer: number | undefined;
   try {
     const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => {
+      timer = window.setTimeout(() => {
         reject(
           new Error(
             t('Connection check timed out after 30 seconds. Check your network and try again.'),
@@ -32,7 +32,7 @@ export async function checkConnection(
       timeout,
     ]);
   } finally {
-    clearTimeout(timer);
+    window.clearTimeout(timer);
     controller.abort();
     options.signal?.removeEventListener('abort', abort);
   }

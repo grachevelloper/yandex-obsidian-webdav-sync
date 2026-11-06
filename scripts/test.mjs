@@ -9,8 +9,12 @@ function testFiles(directory) {
   });
 }
 
-const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', ...testFiles('tests')], {
-  stdio: 'inherit',
-});
+const result = spawnSync(
+  process.execPath,
+  ['--import', 'tsx', '--import', './tests/runtime.mjs', '--test', ...testFiles('tests')],
+  {
+    stdio: 'inherit',
+  },
+);
 if (result.error) throw result.error;
 process.exitCode = result.status ?? 1;
