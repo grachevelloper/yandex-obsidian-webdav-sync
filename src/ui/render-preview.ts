@@ -8,16 +8,13 @@ export function renderPreview(
   plan: SyncPlan,
   openFile?: (entry: PlanEntry) => void,
 ) {
-  const document = container.ownerDocument;
+  const fragment = container.ownerDocument.createDocumentFragment();
   const create = <K extends keyof HTMLElementTagNameMap>(
     tag: K,
     className: string,
     value?: string,
   ) => {
-    const element = document.createElement(tag);
-    element.className = className;
-    if (value !== undefined) element.textContent = value;
-    return element;
+    return fragment.createEl(tag, { cls: className, text: value });
   };
 
   container.replaceChildren();

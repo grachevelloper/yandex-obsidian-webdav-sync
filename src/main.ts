@@ -120,12 +120,12 @@ export default class WebDavSync extends Plugin {
       if (patch.language) {
         setLanguage(patch.language, getLanguage());
         this.refreshLanguage();
-        this.settingsTab?.display();
+        this.settingsTab?.refresh();
       }
     } catch {
       if (patch.language) {
         this.data.settings.language = previousLanguage;
-        this.settingsTab?.display();
+        this.settingsTab?.refresh();
       }
       new Notice(
         t('Could not save WebDAV Sync for Yandex Disk settings. Check available storage.'),
@@ -266,7 +266,12 @@ export default class WebDavSync extends Plugin {
     const include = (path: string) =>
       isIncluded(path, this.app.vault.configDir) &&
       (mode === 'two-way' || !isMirrorServicePath(path));
-    const local = new VaultStore(this.app.vault, `${this.pluginFolder()}/recovery`, include);
+    const local = new VaultStore(
+      this.app.vault,
+      this.app.fileManager,
+      `${this.pluginFolder()}/recovery`,
+      include,
+    );
     const remote = new WebDavStore(
       settings,
       obsidianHttp,

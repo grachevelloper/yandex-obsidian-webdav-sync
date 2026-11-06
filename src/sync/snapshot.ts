@@ -3,7 +3,7 @@ import { MAX_FILE_BYTES } from '../shared/paths';
 import type { Snapshot } from './types';
 
 export async function hashBytes(data: ArrayBuffer): Promise<string> {
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', data);
+  const digest = await window.crypto.subtle.digest('SHA-256', data);
 
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }

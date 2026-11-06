@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import path from 'node:path';
 import { build } from 'esbuild';
-import { JSDOM } from 'jsdom';
+import { createDom } from './dom';
 import { snapshot } from '../../src/sync/snapshot';
 import { SyncLog } from '../../src/logging/log';
 import type { PlanEntry, SyncPlan } from '../../src/sync/types';
@@ -48,7 +48,7 @@ async function fixture(
   action: PlanEntry['action'] = 'conflict',
   side: 'both' | 'local' | 'remote' = 'both',
 ) {
-  const dom = new JSDOM();
+  const dom = createDom();
   const local = await snapshot(
     bytes ? new Uint8Array([0, 255]).buffer : new TextEncoder().encode('# Trip\n09:00').buffer,
   );
@@ -83,7 +83,7 @@ async function fixture(
 
 test('the start menu returns a mode only after a deliberate choice and closes safely on cancellation', async () => {
   for (const mode of ['two-way', 'device-wins', 'cloud-wins']) {
-    const dom = new JSDOM();
+    const dom = createDom();
     const menu = new SyncModeMenu({ document: dom.window.document });
     const decision = menu.choose(new AbortController().signal);
     assert.equal(menu.contentEl.querySelectorAll('[data-sync-mode]').length, 3);
@@ -91,7 +91,7 @@ test('the start menu returns a mode only after a deliberate choice and closes sa
     assert.equal(await decision, mode);
     assert.equal(menu.isOpen, false);
   }
-  const menu = new SyncModeMenu({ document: new JSDOM().window.document });
+  const menu = new SyncModeMenu({ document: createDom().window.document });
   const controller = new AbortController();
   const decision = menu.choose(controller.signal);
   controller.abort();
@@ -269,7 +269,7 @@ test('Skip remaining downloads excludes incoming files for this run without dele
 
 test('Russian mode menu and file editor use translated controls with unchanged mode IDs', async () => {
   setMenuLanguage('ru');
-  const menu = new SyncModeMenu({ document: new JSDOM().window.document });
+  const menu = new SyncModeMenu({ document: createDom().window.document });
   const choice = menu.choose(new AbortController().signal);
   try {
     assert.equal(menu.title, 'Начать синхронизацию');

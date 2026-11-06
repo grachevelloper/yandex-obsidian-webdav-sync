@@ -646,7 +646,8 @@
   }
 
   .yds-conflict-sources {
-    display: contents;
+    display: flex;
+    flex-direction: column;
   }
 
   .yds-conflict-editor[data-tab='local'] [data-side='remote'],

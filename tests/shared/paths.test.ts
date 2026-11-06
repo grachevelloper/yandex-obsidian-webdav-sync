@@ -70,3 +70,12 @@ test('conflict names preserve normal names and use the UTF-8 byte budget', () =>
   const longExtension = conflictPath(`name.${'a'.repeat(250)}`, hash);
   assert.ok(new TextEncoder().encode(longExtension).length <= 255);
 });
+
+test('rejects every ASCII control character without rejecting spaces or Unicode filenames', () => {
+  const controlPaths = Array.from(
+    { length: 32 },
+    (_, code) => 'notes/a' + String.fromCharCode(code) + '.md',
+  );
+  for (const path of controlPaths) assert.throws(() => validatePath(path), /Unsafe path/);
+  assert.equal(validatePath('notes/План на день 😀.md'), 'notes/План на день 😀.md');
+});

@@ -9,16 +9,13 @@ export function renderReport(
   openLog: () => void,
   progress?: SyncProgress,
 ): void {
-  const document = container.ownerDocument;
+  const fragment = container.ownerDocument.createDocumentFragment();
   const create = <K extends keyof HTMLElementTagNameMap>(
     tag: K,
     className: string,
     text?: string,
   ) => {
-    const element = document.createElement(tag);
-    element.className = className;
-    if (text !== undefined) element.textContent = text;
-    return element;
+    return fragment.createEl(tag, { cls: className, text });
   };
 
   container.replaceChildren();

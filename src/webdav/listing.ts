@@ -1,7 +1,8 @@
 import { t } from '../i18n';
 import { normalizeETag } from './etag';
 import { isObject } from '../shared/objects';
-import { XMLParser, XMLValidator } from 'fast-xml-parser';
+import { XMLParser } from 'fast-xml-parser';
+import { SyntaxValidator } from 'fast-xml-validator';
 import { validatePath } from '../shared/paths';
 import { WEBDAV_ENDPOINT } from './protocol';
 
@@ -13,7 +14,10 @@ interface DavEntry {
 }
 
 export function parseListing(xml: string, root: string): DavEntry[] {
-  if (/<!DOCTYPE|<!ENTITY/iu.test(xml) || XMLValidator.validate(xml) !== true) {
+  try {
+    if (/<!DOCTYPE|<!ENTITY/iu.test(xml)) throw new Error();
+    SyntaxValidator.validate(xml);
+  } catch {
     throw new Error(t('Invalid XML in the WebDAV response.'));
   }
 
@@ -74,7 +78,8 @@ export function parseListing(xml: string, root: string): DavEntry[] {
 }
 
 function successfulProperties(values: unknown[]): Record<string, unknown> {
-  const properties: Record<string, unknown> = Object.create(null);
+  const properties: Record<string, unknown> = {};
+  Object.setPrototypeOf(properties, null);
   let found = false;
   let etagSeen = false;
   let ambiguousEtag = false;

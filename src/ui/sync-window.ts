@@ -18,7 +18,7 @@ export class SyncWindow extends Modal {
   private progress: SyncProgress = { phase: 'listing', processed: 0, activePaths: [] };
   private view?: ReturnType<typeof renderProgress>;
   private bar?: ProgressBarComponent;
-  private timer?: ReturnType<typeof setInterval>;
+  private timer?: number;
   private phaseStartedAt = Date.now();
   private request?: { method: string; path: string };
   private retry?: { reason: RetryInfo['reason']; until: number };
@@ -246,7 +246,7 @@ export class SyncWindow extends Modal {
     }
     this.update(this.progress);
     this.view.bar.focus({ preventScroll: true });
-    this.timer = setInterval(() => this.renderActivity(), 1000);
+    this.timer = this.contentEl.win.setInterval(() => this.renderActivity(), 1000);
   }
 
   private renderActivity(): void {
@@ -302,7 +302,7 @@ export class SyncWindow extends Modal {
   }
 
   private clearProgress(): void {
-    if (this.timer !== undefined) clearInterval(this.timer);
+    if (this.timer !== undefined) this.contentEl.win.clearInterval(this.timer);
     this.timer = undefined;
     this.view = undefined;
     this.bar = undefined;

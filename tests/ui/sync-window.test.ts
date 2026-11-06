@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import path from 'node:path';
 import { build } from 'esbuild';
-import { JSDOM } from 'jsdom';
+import { createDom } from './dom';
 import { SyncLog } from '../../src/logging/log';
 
 const bundle = await build({
@@ -20,7 +20,7 @@ const { SyncWindow } = await import(
 );
 
 function setup() {
-  const dom = new JSDOM();
+  const dom = createDom();
   const log = new SyncLog();
   const window = new SyncWindow({ document: dom.window.document }, log.data, 'local-log.json');
   const button = (label: string) =>
@@ -121,7 +121,7 @@ test('displays retry countdowns in the window and clears them when a request sta
 });
 
 test('stop remains visible after reopening progress and reports waiting for active requests', () => {
-  const dom = new JSDOM();
+  const dom = createDom();
   let stopped = 0;
   const window = new SyncWindow(
     { document: dom.window.document },
@@ -147,4 +147,25 @@ test('stop remains visible after reopening progress and reports waiting for acti
   } finally {
     window.close();
   }
+});
+
+test('progress timers start and stop in the window that owns the modal', () => {
+  const { window } = setup();
+  const owner = window.contentEl.ownerDocument.defaultView;
+  let started = 0;
+  let cleared = 0;
+  owner.setInterval = (callback: () => void, milliseconds: number) => {
+    assert.equal(milliseconds, 1000);
+    started++;
+    callback();
+    return 42;
+  };
+  owner.clearInterval = (timer: number) => {
+    assert.equal(timer, 42);
+    cleared++;
+  };
+  window.show();
+  assert.equal(started, 1);
+  window.close();
+  assert.equal(cleared, 1);
 });

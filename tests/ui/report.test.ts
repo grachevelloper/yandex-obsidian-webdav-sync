@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { JSDOM } from 'jsdom';
+import { createDom } from './dom';
 import { renderReport } from '../../src/ui/render-report';
 import { SyncLog } from '../../src/logging/log';
 
 test('renders metric cards, both conflict paths and a working log button', () => {
-  const dom = new JSDOM('<main></main>');
+  const dom = createDom('<main></main>');
   const container = dom.window.document.querySelector('main');
   assert.ok(container);
   const log = new SyncLog();
@@ -31,7 +31,7 @@ test('renders metric cards, both conflict paths and a working log button', () =>
 });
 
 test('renders untrusted paths and failures as text instead of HTML', () => {
-  const dom = new JSDOM('<main></main>');
+  const dom = createDom('<main></main>');
   const container = dom.window.document.querySelector('main');
   assert.ok(container);
   const log = new SyncLog();
@@ -43,7 +43,7 @@ test('renders untrusted paths and failures as text instead of HTML', () => {
 });
 
 test('uses a calm success state when there are no conflicts or errors', () => {
-  const dom = new JSDOM('<main></main>');
+  const dom = createDom('<main></main>');
   const container = dom.window.document.querySelector('main');
   assert.ok(container);
   const log = new SyncLog();

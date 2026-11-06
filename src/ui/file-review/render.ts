@@ -31,16 +31,16 @@ export interface FileReviewView {
 }
 
 export interface FileReviewActions {
-  move(direction: number): void;
-  select(kind: 'local' | 'remote' | 'both'): void;
-  tab(kind: 'local' | 'remote' | 'result'): void;
-  edit(text: string): void;
-  replace(): void;
-  keepEditing(): void;
-  skip(): void;
-  remove(): void;
-  resolve(): void;
-  cancel(): void;
+  move(this: void, direction: number): void;
+  select(this: void, kind: 'local' | 'remote' | 'both'): void;
+  tab(this: void, kind: 'local' | 'remote' | 'result'): void;
+  edit(this: void, text: string): void;
+  replace(this: void): void;
+  keepEditing(this: void): void;
+  skip(this: void): void;
+  remove(this: void): void;
+  resolve(this: void): void;
+  cancel(this: void): void;
 }
 
 export function renderFileReview(
@@ -48,16 +48,13 @@ export function renderFileReview(
   view: FileReviewView,
   actions: FileReviewActions,
 ): void {
-  const document = container.ownerDocument;
+  const fragment = container.ownerDocument.createDocumentFragment();
   const create = <K extends keyof HTMLElementTagNameMap>(
     tag: K,
     className: string,
     text?: string,
   ) => {
-    const node = document.createElement(tag);
-    node.className = className;
-    if (text !== undefined) node.textContent = text;
-    return node;
+    return fragment.createEl(tag, { cls: className, text });
   };
   const button = (label: string, callback: () => void) => {
     const node = create('button', '', label);

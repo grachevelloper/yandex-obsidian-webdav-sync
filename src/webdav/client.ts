@@ -40,7 +40,7 @@ export class WebDavClient {
     private readonly options: RequestOptions = {},
   ) {
     this.scheduler = new RequestScheduler(options.timing, options);
-    this.now = options.timing?.now ?? Date.now;
+    this.now = () => options.timing?.now() ?? Date.now();
     const credentials = new TextEncoder().encode(`${connection.login}:${connection.password}`);
     this.authorization = `Basic ${btoa(Array.from(credentials, (byte) => String.fromCharCode(byte)).join(''))}`;
   }

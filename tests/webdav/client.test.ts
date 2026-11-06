@@ -76,3 +76,30 @@ test('does not label expected missing files and existing folders as errors', asy
   }
   assert.ok(log.data.events.every((event) => event.level === 'info'));
 });
+
+test('retains the clock context when recording request durations', async () => {
+  const log = new SyncLog();
+  const timing = {
+    milliseconds: 100,
+    now() {
+      return this.milliseconds;
+    },
+    async sleep(milliseconds: number) {
+      this.milliseconds += milliseconds;
+    },
+  };
+  const client = new WebDavClient(
+    { login: 'user', password: 'secret', folder: 'Obsidian' },
+    async () => {
+      timing.milliseconds += 25;
+      return response(200);
+    },
+    log.record,
+    { timing },
+  );
+  await client.request('GET', 'Obsidian/note.md');
+  assert.equal(
+    log.data.events.find((event) => event.message === 'WebDAV response')?.details?.elapsedMs,
+    25,
+  );
+});

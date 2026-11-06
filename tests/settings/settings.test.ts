@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import path from 'node:path';
+import type { SettingDefinition } from 'obsidian';
+import { build } from 'esbuild';
+import { createDom } from '../ui/dom';
 import { loadPluginData, scopeFor, validateSettings } from '../../src/settings/data';
 
 test('loads defaults without sharing the state map', () => {
@@ -120,4 +124,190 @@ test('accepts up to sixteen simultaneous requests', () => {
   };
   assert.equal(loadPluginData({ settings }).settings.concurrentRequests, 16);
   assert.equal(validateSettings(settings).concurrentRequests, 16);
+});
+
+test('state and cache dictionaries retain special filenames as own keys', () => {
+  const hash = 'a'.repeat(64);
+  const specialPath = '__proto__';
+  const saved = {
+    state: { version: 1, scope: 'account', hashes: { [specialPath]: hash } },
+    remoteCache: {
+      version: 1,
+      scope: 'account',
+      files: { [specialPath]: { etag: 'b'.repeat(32), hash, size: 4 } },
+    },
+  };
+  const restored = loadPluginData(saved);
+  assert.equal(Object.getPrototypeOf(restored.state.hashes), null);
+  assert.equal(Object.getPrototypeOf(restored.remoteCache.files), null);
+  assert.equal(Object.hasOwn(restored.state.hashes, '__proto__'), true);
+  assert.equal(restored.state.hashes['__proto__'], hash);
+  assert.equal(restored.remoteCache.files['__proto__']?.hash, hash);
+});
+
+const settingsBundle = await build({
+  entryPoints: [path.resolve('src/settings/tab.ts')],
+  bundle: true,
+  write: false,
+  platform: 'node',
+  format: 'esm',
+  alias: { obsidian: path.resolve('tests/ui/obsidian-host.mjs') },
+});
+const settingsOutput = settingsBundle.outputFiles[0];
+assert.ok(settingsOutput);
+const { SyncSettingsTab } = await import(
+  'data:text/javascript;base64,' + Buffer.from(settingsOutput.contents).toString('base64')
+);
+
+function settingsFixture() {
+  const dom = createDom();
+  const calls: string[] = [];
+  const plugin = {
+    app: { document: dom.window.document },
+    data: loadPluginData(null),
+    running: false,
+    checkingConnection: false,
+    connectionResult: undefined as string | undefined,
+    updateSettings: async (patch: object) => {
+      Object.assign(plugin.data.settings, patch);
+    },
+    testConnection: async () => {
+      calls.push('connection');
+    },
+    runSync: async () => {
+      calls.push('sync');
+    },
+    openLatestLog: async () => {
+      calls.push('log');
+    },
+  };
+  const tab = new SyncSettingsTab(plugin);
+  const button = (text: string) =>
+    [...tab.containerEl.querySelectorAll('button')].find((element) => element.textContent === text);
+  return { dom, plugin, tab, calls, button };
+}
+
+test('settings definitions expose searchable names without reading credentials or rendering controls', () => {
+  const { plugin, tab } = settingsFixture();
+  Object.defineProperty(plugin, 'data', {
+    get() {
+      throw new Error('Indexing must not read settings');
+    },
+  });
+  const definitions: SettingDefinition[] = tab.getSettingDefinitions();
+  const names = definitions
+    .filter((definition) => definition.searchable !== false)
+    .map((definition) => definition.name);
+  assert.deepEqual(names, [
+    'Language',
+    'Yandex login',
+    'App password',
+    'Yandex Disk folder',
+    'Concurrent requests',
+    'Request start interval (seconds)',
+    'Connection',
+    'Run sync',
+    'Local sync logs',
+  ]);
+  assert.equal(tab.containerEl.children.length, 0);
+});
+
+test('legacy settings save values, validate the interval and reflect sync activity', () => {
+  const { dom, plugin, tab, calls, button } = settingsFixture();
+  tab.display();
+  const inputs = [...tab.containerEl.querySelectorAll('input')];
+  const [login, password, folder, interval] = inputs;
+  assert.ok(login && password && folder && interval);
+  assert.equal(password.type, 'password');
+  assert.equal(password.autocomplete, 'off');
+  login.value = 'updated-user';
+  login.dispatchEvent(new dom.window.Event('change'));
+  interval.value = '0';
+  interval.dispatchEvent(new dom.window.Event('change'));
+  assert.equal(plugin.data.settings.requestIntervalMs, 1000);
+  interval.value = '2.5';
+  interval.dispatchEvent(new dom.window.Event('change'));
+  assert.equal(plugin.data.settings.requestIntervalMs, 2500);
+  interval.value = '0';
+  interval.dispatchEvent(new dom.window.Event('blur'));
+  assert.equal(interval.value, '2.5');
+  assert.equal(plugin.data.settings.login, 'updated-user');
+  button('Test connection')?.click();
+  button('Preview sync')?.click();
+  button('View latest log')?.click();
+  assert.deepEqual(calls, ['connection', 'sync', 'log']);
+
+  plugin.checkingConnection = true;
+  tab.refreshActivity();
+  assert.ok(inputs.every((input) => input.disabled));
+  assert.equal(button('Checking…')?.disabled, true);
+  assert.equal(button('Preview sync')?.disabled, true);
+  plugin.checkingConnection = false;
+  plugin.running = true;
+  tab.refreshActivity();
+  assert.equal(button('View progress')?.disabled, false);
+  plugin.running = false;
+  plugin.connectionResult = 'Connected';
+  tab.refreshActivity();
+  assert.ok(inputs.every((input) => !input.disabled));
+  assert.match(tab.containerEl.textContent, /Connected/);
+  tab.refresh();
+  assert.equal(tab.containerEl.querySelectorAll('input').length, 4);
+  assert.equal(tab.containerEl.querySelector('input')?.value, 'updated-user');
+});
+
+test('modern settings use host updates and release activity callbacks when rows are removed', () => {
+  const { plugin, tab } = settingsFixture();
+  const definitions = tab.getSettingDefinitions();
+  const language = definitions[0];
+  assert.ok(language);
+  let updates = 0;
+  let disabled = false;
+  const dropdown = {
+    addOption() {
+      return this;
+    },
+    setValue() {
+      return this;
+    },
+    onChange() {
+      return this;
+    },
+    setDisabled(value: boolean) {
+      updates++;
+      disabled = value;
+      return this;
+    },
+  };
+  const cleanup = language.render({
+    addDropdown(callback: (value: typeof dropdown) => void) {
+      callback(dropdown);
+    },
+  });
+  assert.equal(updates, 1);
+  plugin.running = true;
+  tab.refreshActivity();
+  assert.equal(disabled, true);
+  cleanup?.();
+  tab.refreshActivity();
+  assert.equal(updates, 2);
+  let hostUpdates = 0;
+  tab.update = () => {
+    hostUpdates++;
+  };
+  tab.refresh();
+  assert.equal(hostUpdates, 1);
+  assert.equal(tab.containerEl.children.length, 0);
+});
+
+test('closing legacy settings releases activity updates for detached controls', () => {
+  const { plugin, tab } = settingsFixture();
+  tab.display();
+  const login = tab.containerEl.querySelector('input');
+  assert.ok(login);
+  tab.hide();
+
+  plugin.running = true;
+  tab.refreshActivity();
+  assert.equal(login.disabled, false);
 });

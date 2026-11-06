@@ -1,5 +1,5 @@
 import { t } from '../i18n';
-import type { TFile, Vault } from 'obsidian';
+import type { FileManager, TFile, Vault } from 'obsidian';
 import { isIncluded, MAX_FILE_BYTES, parentPath, validatePath } from '../shared/paths';
 import { ChangedDuringSync } from '../sync/errors';
 import { snapshot } from '../sync/snapshot';
@@ -11,6 +11,7 @@ export class VaultStore implements SyncStore {
 
   constructor(
     private readonly vault: Vault,
+    private readonly fileManager: FileManager,
     private readonly recoveryFolder: string,
     private readonly include = (path: string) => isIncluded(path, vault.configDir),
   ) {}
@@ -73,7 +74,7 @@ export class VaultStore implements SyncStore {
     if (!file || (await this.read(path))?.hash !== expected.hash) throw new ChangedDuringSync(path);
 
     // Vault has no conditional delete API; recheck bytes immediately before moving the file to trash.
-    await this.vault.trash(file, false);
+    await this.fileManager.trashFile(file);
   }
 
   private findFile(path: string): TFile | undefined {
