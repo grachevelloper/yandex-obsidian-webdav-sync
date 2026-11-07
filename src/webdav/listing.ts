@@ -2,7 +2,6 @@ import { t } from '../i18n';
 import { normalizeETag } from './etag';
 import { isObject } from '../shared/objects';
 import { XMLParser } from 'fast-xml-parser';
-import { SyntaxValidator } from 'fast-xml-validator';
 import { validatePath } from '../shared/paths';
 import { WEBDAV_ENDPOINT } from './protocol';
 
@@ -16,7 +15,14 @@ interface DavEntry {
 export function parseListing(xml: string, root: string): DavEntry[] {
   try {
     if (/<!DOCTYPE|<!ENTITY/iu.test(xml)) throw new Error();
-    SyntaxValidator.validate(xml);
+    const checked = new DOMParser().parseFromString(xml, 'application/xml');
+    if (
+      checked.getElementsByTagNameNS(
+        'http://www.mozilla.org/newlayout/xml/parsererror.xml',
+        'parsererror',
+      ).length
+    )
+      throw new Error();
   } catch {
     throw new Error(t('Invalid XML in the WebDAV response.'));
   }

@@ -1,7 +1,7 @@
 {
   "id": "webdav-sync-for-yandex-disk",
   "name": "WebDAV Sync for Yandex Disk",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "minAppVersion": "1.8.7",
   "description": "Manually sync notes and attachments with Yandex Disk over WebDAV, preserving conflicting versions.",
   "author": "Nick Grachev",

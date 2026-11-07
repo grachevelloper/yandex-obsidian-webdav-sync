@@ -1,23 +1,23 @@
 {
   "name": "yandex-disk-webdav-sync",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "license": "MIT",
   "description": "Manual two-way Obsidian sync over Yandex Disk WebDAV",
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit && node esbuild.config.mjs",
+    "build": "tsc --noEmit && node esbuild.config.mjs && npm run test:bundle",
     "test": "node scripts/test.mjs",
     "check": "npm run format:check && npm run lint && npm test && npm run build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "npm run lint:community && npm run lint:recommended",
     "lint:community": "node scripts/lint-community.mjs",
-    "lint:recommended": "eslint . --max-warnings 0"
+    "lint:recommended": "eslint . --max-warnings 0",
+    "test:bundle": "node --test tests/runtime/plugin-load.test.mjs"
   },
   "dependencies": {
-    "fast-xml-parser": "^5.3.0",
-    "fast-xml-validator": "^1.4.2"
+    "fast-xml-parser": "^5.3.0"
   },
   "devDependencies": {
     "@types/jsdom": "^30.0.0",

@@ -3,7 +3,10 @@
 Use Node.js 24 and a separate task branch and worktree. Install dependencies with
 `npm ci`, then run `npm run check` before submitting changes. This checks formatting,
 the official Obsidian lint rules, behavior tests, TypeScript types and the
-browser-compatible plugin build. `npm run lint` rejects warnings as well as errors.
+browser-compatible plugin build. The build runs `npm run test:bundle` against the
+actual emitted `main.js` in an isolated browser-like context without Node globals.
+This verifies module loading, plugin initialization and the WebDAV connection
+check. `npm run lint` rejects warnings as well as errors.
 
 `npm run lint:community` runs the official Obsidian rules pinned to 0.4.2, which
 reproduce the two unsupported-API findings and four DOM-helper warnings from the

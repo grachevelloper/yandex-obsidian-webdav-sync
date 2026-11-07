@@ -50,3 +50,31 @@ test('conflicting successful ETag properties cannot produce a cache hit', () => 
   const xml = base.replace('</d:response>', `${properties}</d:response>`);
   assert.equal(parseListing(xml, 'Obsidian/Тест')[0]?.revision, undefined);
 });
+
+test('rejects malformed XML structure before using WebDAV properties', () => {
+  const valid = listing('/Obsidian/Тест/a.md');
+  const malformedListings = [
+    valid + '<extra/>',
+    valid.replace('</d:prop>', '</d:propstat>'),
+    valid.replace('<d:getcontentlength>', '<d:getcontentlength a="1" a="2">'),
+    valid.replace('<d:getcontentlength>', '<unknown:getcontentlength>'),
+    valid.replace('</d:getcontentlength>', '</unknown:getcontentlength>'),
+  ];
+  for (const xml of malformedListings) {
+    assert.throws(() => parseListing(xml, 'Obsidian/Тест'), /Invalid XML/);
+  }
+});
+
+test('rejects declarations and external entities before invoking the browser parser', (context) => {
+  const parse = context.mock.method(DOMParser.prototype, 'parseFromString');
+  const unsafeListings = [
+    '<!DOCTYPE d:multistatus SYSTEM "https://example.invalid/private.dtd">' +
+      listing('/Obsidian/a.md'),
+    '<!DOCTYPE d:multistatus [<!ENTITY secret SYSTEM "file:///private.txt">]>' +
+      listing('/Obsidian/a.md'),
+  ];
+  for (const xml of unsafeListings) {
+    assert.throws(() => parseListing(xml, 'Obsidian'), /Invalid XML/);
+  }
+  assert.equal(parse.mock.callCount(), 0);
+});
