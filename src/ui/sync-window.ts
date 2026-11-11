@@ -6,9 +6,10 @@ import type { SyncProgress } from '../sync/progress';
 import type { FileLoader } from '../sync/load-file';
 import { FileReviewEditor } from './file-review/editor';
 import type { PlanEntry, SyncPlan } from '../sync/types';
+import { validateRelocations } from '../sync/relocation';
 import type { RetryInfo } from '../webdav/request-scheduler';
 import { LogViewer } from './log-viewer';
-import { renderPreview } from './render-preview';
+import { renderPreview, type PreviewListState } from './render-preview';
 import { renderProgress } from './render-progress';
 import { renderReport } from './render-report';
 
@@ -24,10 +25,15 @@ export class SyncWindow extends Modal {
   private retry?: { reason: RetryInfo['reason']; until: number };
   private decision?: (confirmed: boolean) => void;
   private plan?: SyncPlan;
+  private splitPreview = false;
+  private readonly listState: PreviewListState = { collapsed: new Set(), showUnchanged: false };
+  private previewView?: ReturnType<typeof renderPreview>;
+  private selectedFile?: PlanEntry;
   private removeAbortListener?: () => void;
   private warning?: string;
   private stopping = false;
   private fileLoader?: FileLoader;
+  private restoreCopy?: (path: string, hash: string) => Promise<string>;
   private conflictEditor?: FileReviewEditor;
   private fileViewer?: FileReviewEditor;
 
@@ -71,10 +77,18 @@ export class SyncWindow extends Modal {
     this.fileLoader = load;
   }
 
+  setRestoreCopy(restore: (path: string, hash: string) => Promise<string>): void {
+    this.restoreCopy = restore;
+  }
+
   confirm(plan: SyncPlan, signal: AbortSignal): Promise<boolean> {
     if (signal.aborted) return Promise.resolve(false);
     this.mode = 'preview';
     this.plan = plan;
+    this.splitPreview =
+      !!this.fileLoader &&
+      !this.contentEl.ownerDocument.body.classList.contains('is-mobile') &&
+      !!this.contentEl.win.matchMedia?.('(min-width: 700px)').matches;
     return new Promise((resolve) => {
       this.decision = resolve;
       const abort = () => this.close();
@@ -110,19 +124,85 @@ export class SyncWindow extends Modal {
 
   private openFile(entry: PlanEntry): void {
     if (!this.fileLoader) return;
+    const detail = this.previewView?.detail;
+    if (detail && this.selectedFile === entry) {
+      detail.focus({ preventScroll: true });
+      return;
+    }
+    if (!this.canLeaveSelectedFile()) return;
+
+    this.fileViewer?.dispose();
+    this.conflictEditor?.dispose();
+    this.conflictEditor = undefined;
     const back = () => {
       this.fileViewer?.dispose();
       this.fileViewer = undefined;
-      this.conflictEditor?.dispose();
-      this.conflictEditor = undefined;
-      this.mode = 'preview';
-      this.render();
+      this.selectedFile = undefined;
+      if (detail) this.renderSelectedFile();
+      else {
+        this.mode = 'preview';
+        this.render();
+      }
     };
-    this.fileViewer = new FileReviewEditor([entry], this.fileLoader, back, back, {
+    const save = detail
+      ? () => {
+          this.render();
+          this.previewView?.detail?.focus({ preventScroll: true });
+        }
+      : back;
+    this.fileViewer = new FileReviewEditor([entry], this.fileLoader, save, back, {
       singleFile: true,
+      embedded: !!detail,
+      validateRename: (renameTo) => {
+        if (!this.plan) return;
+        validateRelocations(
+          this.plan.entries.map((candidate) =>
+            candidate === entry ? { ...entry, renameTo, resolution: undefined } : candidate,
+          ),
+        );
+      },
     });
-    this.mode = 'file';
-    this.render();
+    if (detail) {
+      this.selectedFile = entry;
+      this.renderSelectedFile();
+      detail.focus({ preventScroll: true });
+    } else {
+      this.mode = 'file';
+      this.render();
+    }
+  }
+
+  private renderSelectedFile(): void {
+    const view = this.previewView;
+    const detail = view?.detail;
+    if (!view || !detail) return;
+
+    view.selectFile(this.selectedFile);
+    if (this.fileViewer) this.fileViewer.show(detail);
+    else {
+      detail.classList.remove('yds-conflict-editor');
+      detail.replaceChildren();
+      detail.createEl('p', { cls: 'yds-preview-empty', text: t('Select a file to review it.') });
+    }
+  }
+
+  private canLeaveSelectedFile(): boolean {
+    const detail = this.previewView?.detail;
+    if (!detail || !this.fileViewer?.hasUnsavedChanges()) return true;
+
+    let warning = detail.querySelector<HTMLElement>('[data-unsaved-warning]');
+    if (!warning) {
+      warning = detail.createEl('p', {
+        cls: 'yds-preview-warning',
+        text: t('Save your choice or close the file to discard your edits.'),
+      });
+      warning.dataset.unsavedWarning = '';
+      warning.setAttribute('role', 'alert');
+      warning.tabIndex = -1;
+      detail.prepend(warning);
+    }
+    warning.focus({ preventScroll: true });
+    return false;
   }
 
   private render(): void {
@@ -151,11 +231,14 @@ export class SyncWindow extends Modal {
       this.setTitle(t('Sync preview'));
       const plan = this.plan;
       if (!plan) return;
+      const scrollTop = this.previewView?.list.scrollTop ?? 0;
       const view = renderPreview(
         this.contentEl,
         plan,
         this.fileLoader ? (entry) => this.openFile(entry) : undefined,
+        { split: this.splitPreview, listState: this.listState },
       );
+      this.previewView = view;
       new ButtonComponent(view.actions).setButtonText(t('Cancel')).onClick(() => this.close());
       if (!plan.mode || plan.mode === 'two-way') {
         for (const action of ['download', 'upload'] as const) {
@@ -165,6 +248,7 @@ export class SyncWindow extends Modal {
               action === 'download' ? t('Skip remaining downloads') : t('Skip remaining uploads'),
             )
             .onClick(() => {
+              if (!this.canLeaveSelectedFile()) return;
               for (const entry of plan.entries) {
                 if (entry.action === action && !entry.resolution)
                   entry.resolution = { kind: 'skip' };
@@ -182,6 +266,12 @@ export class SyncWindow extends Modal {
               : t('Edit resolutions'),
           )
           .onClick(() => {
+            if (view.detail) {
+              const conflicts = plan.entries.filter((entry) => entry.action === 'conflict');
+              const entry = conflicts.find((item) => !item.resolution) ?? conflicts[0];
+              if (entry) this.openFile(entry);
+              return;
+            }
             if (!this.conflictEditor && this.fileLoader) {
               this.conflictEditor = new FileReviewEditor(
                 plan.entries,
@@ -203,7 +293,7 @@ export class SyncWindow extends Modal {
         .setCta()
         .setDisabled(!view.canConfirm)
         .onClick(() => {
-          if (!view.canConfirm || !this.decision) return;
+          if (!view.canConfirm || !this.decision || !this.canLeaveSelectedFile()) return;
           this.mode = 'progress';
           this.request = undefined;
           this.retry = undefined;
@@ -211,6 +301,8 @@ export class SyncWindow extends Modal {
           this.settle(true);
           this.render();
         });
+      this.renderSelectedFile();
+      view.list.scrollTop = scrollTop;
       return;
     }
     if (this.mode === 'report') {
@@ -220,6 +312,7 @@ export class SyncWindow extends Modal {
         this.log,
         () => new LogViewer(this.app, this.log, this.logPath).open(),
         this.progress,
+        this.restoreCopy,
       );
       if (this.warning)
         this.contentEl.createEl('p', { cls: 'yds-preview-warning', text: this.warning });
@@ -292,6 +385,10 @@ export class SyncWindow extends Modal {
     const decide = this.decision;
     this.decision = undefined;
     this.plan = undefined;
+    this.previewView = undefined;
+    this.selectedFile = undefined;
+    this.listState.collapsed.clear();
+    this.listState.showUnchanged = false;
     this.conflictEditor?.dispose();
     this.conflictEditor = undefined;
     this.fileViewer?.dispose();

@@ -1,6 +1,6 @@
 {
   "name": "yandex-disk-webdav-sync",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "private": true,
   "license": "MIT",
   "description": "Manual two-way Obsidian sync over Yandex Disk WebDAV",
@@ -14,12 +14,17 @@
     "lint": "npm run lint:community && npm run lint:recommended",
     "lint:community": "node scripts/lint-community.mjs",
     "lint:recommended": "eslint . --max-warnings 0",
-    "test:bundle": "node --test tests/runtime/plugin-load.test.mjs"
+    "test:bundle": "node --test tests/runtime/plugin-load.test.mjs",
+    "ui:capture": "tsc --noEmit && node tests/e2e/gallery/capture.mjs",
+    "ui:gallery": "node tests/e2e/gallery/serve.mjs",
+    "ui:e2e": "playwright test --config tests/e2e/playwright.config.mjs"
   },
   "dependencies": {
-    "fast-xml-parser": "^5.3.0"
+    "fast-xml-parser": "^5.3.0",
+    "node-diff3": "3.2.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^24.0.0",
     "esbuild": "^0.25.0",

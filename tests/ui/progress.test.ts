@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createDom } from './dom';
+import { createDom } from '../helpers/dom';
 import { FileProgress } from '../../src/sync/progress';
 import { renderProgress } from '../../src/ui/render-progress';
 import type { SyncProgress } from '../../src/sync/progress';

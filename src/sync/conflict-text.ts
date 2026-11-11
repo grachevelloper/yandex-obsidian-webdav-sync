@@ -1,12 +1,12 @@
 const MAX_DIFF_CELLS = 1_000_000;
 export const MAX_EDITABLE_BYTES = 1024 * 1024;
 
+export function isTextPath(path: string): boolean {
+  return /\.(md|txt|csv|json|canvas|yaml|yml|xml|html|css|js|ts)$/iu.test(path);
+}
+
 export function editableText(path: string, data: ArrayBuffer): string | undefined {
-  if (
-    !/\.(md|txt|csv|json|canvas|yaml|yml|xml|html|css|js|ts)$/iu.test(path) ||
-    data.byteLength > MAX_EDITABLE_BYTES
-  )
-    return undefined;
+  if (!isTextPath(path) || data.byteLength > MAX_EDITABLE_BYTES) return undefined;
   try {
     return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(data);
   } catch {

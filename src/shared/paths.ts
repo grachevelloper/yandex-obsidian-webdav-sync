@@ -55,12 +55,19 @@ export function parentPath(path: string): string {
 }
 
 export function conflictPath(path: string, hash: string): string {
+  return versionedPath(path, `.conflict-${hash}`);
+}
+
+export function recoveredPath(path: string, hash: string): string {
+  return versionedPath(path, `.recovered-${hash.slice(0, 12)}`);
+}
+
+function versionedPath(path: string, suffix: string): string {
   const parent = parentPath(path);
   const name = path.slice(parent ? parent.length + 1 : 0);
   const dot = name.lastIndexOf('.');
 
   const encoder = new TextEncoder();
-  const suffix = `.conflict-${hash}`;
   const availableBytes = MAX_FILENAME_BYTES - encoder.encode(suffix).length;
 
   const candidateExtension = dot > 0 ? name.slice(dot) : '';

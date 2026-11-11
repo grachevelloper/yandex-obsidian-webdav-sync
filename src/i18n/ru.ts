@@ -1,4 +1,63 @@
 export const russian = {
+  'Selected file': 'Выбранный файл',
+  'Select a file to review it.': 'Выберите файл в списке слева.',
+  'Close file': 'Закрыть файл',
+  'Save your choice or close the file to discard your edits.':
+    'Сохраните выбор или закройте файл, чтобы отменить правки.',
+  'Several files match this possible move. Check their paths before confirming.':
+    'Найдено несколько совпадений. Проверьте пути перед подтверждением.',
+  Added: 'Добавлено',
+  Updated: 'Обновлено',
+  Restored: 'Восстановлено',
+  'Edits merged': 'Правки объединены',
+  Moved: 'Перемещено',
+  Renamed: 'Переименовано',
+  'Sync finished with skipped files': 'Синхронизация завершена с пропусками',
+  'Previous versions': 'Предыдущие версии',
+  'Restore a copy': 'Восстановить копию',
+  'Restore a copy of {0}': 'Восстановить копию файла {0}',
+  'Copy saved on this device: {0}': 'Копия сохранена на этом устройстве: {0}',
+  'Restoring creates a separate file on this device.':
+    'Восстановление создаёт отдельный файл на этом устройстве.',
+  'The previous version is unavailable.': 'Предыдущая версия недоступна.',
+  'Add to Disk': 'Добавить на Диск',
+  'Add to device': 'Добавить на устройство',
+  'Update on Disk': 'Обновить на Диске',
+  'Update on device': 'Обновить на устройстве',
+  'Restore on Disk': 'Восстановить на Диске',
+  'Restore on device': 'Восстановить на устройстве',
+  'Save result on Disk and device': 'Сохранить итог на Диске и устройстве',
+  'Save with new name': 'Сохранить под новым именем',
+  'Save the file under the new name on Disk and device.':
+    'Сохранить файл под новым именем на Диске и устройстве.',
+  'New path: {0}': 'Новый путь: {0}',
+  'Choose a result': 'Выбрать итог',
+  'Merge edits': 'Объединить правки',
+  'Move on Disk': 'Переместить на Диске',
+  'Move on device': 'Переместить на устройстве',
+  'The file is already at the new path on one side. Confirm to move it on the other.':
+    'Файл уже по новому пути на одной стороне. Подтвердите, чтобы переместить его на другой.',
+  'Save the combined edits on Disk and device.':
+    'Сохранить объединённые правки на Диске и устройстве.',
+  'Files will change after you confirm.': 'Файлы изменятся после подтверждения.',
+  'No files will be deleted.': 'Файлы не будут удалены.',
+  'Edit file name': 'Изменить имя файла',
+  'Edit file name: {0}': 'Изменить имя файла {0}',
+  'File name without extension': 'Имя файла без расширения',
+  'Choose each conflicting section. Other edits are already combined.':
+    'Выберите версию каждого спорного участка. Остальные правки уже объединены.',
+  'Section {0}': 'Участок {0}',
+  'Last common text': 'Последний общий текст',
+  'This version removed these lines.': 'В этой версии строки удалены.',
+  'No text at this position.': 'На этом месте текста не было.',
+  'Enter a valid file name.': 'Введите допустимое имя файла.',
+  'This name is already in use: {0}': 'Это имя уже занято: {0}',
+  'This file cannot be moved safely.': 'Не удалось безопасно переместить файл.',
+  'Saved the file at its new path.': 'Файл сохранён по новому пути.',
+  'Could not keep the common text for future merges.':
+    'Не удалось сохранить общую версию текста для будущего объединения.',
+  'Could not remove the previous common text.':
+    'Не удалось удалить предыдущую общую версию текста.',
   'Connection check timed out after 30 seconds. Check your network and try again.':
     'Проверка подключения не завершилась за 30 секунд. Проверьте сеть и повторите попытку.',
   'Yandex Disk rejected the write precondition': 'Яндекс Диск отклонил условие записи',
@@ -18,10 +77,13 @@ export const russian = {
   'Could not save WebDAV Sync for Yandex Disk settings. Check available storage.':
     'Не удалось сохранить настройки WebDAV Sync for Yandex Disk. Проверьте свободное место.',
   'Checking connection…': 'Проверка подключения…',
-  'Connected. Login, app password and folder access are valid. No files were changed.':
-    'Подключено. Логин, пароль приложения и доступ к папке верны. Файлы не изменялись.',
-  'Connected. Login and app password are valid, but the selected folder does not exist. No folder was created.':
-    'Подключено. Логин и пароль приложения верны, но выбранная папка не существует. Папка не создавалась.',
+  Connected: 'Подключено',
+  'Connection failed': 'Не удалось подключиться',
+  'Folder not found': 'Папка не найдена',
+  'Login, app password and folder access are valid. No files were changed.':
+    'Логин, пароль приложения и доступ к папке верны. Файлы не изменялись.',
+  'Login and app password are valid. Check the folder path in settings.':
+    'Логин и пароль приложения верны. Проверьте путь к папке в настройках.',
   'Connection check failed.': 'Не удалось проверить подключение.',
   'Starting manual sync': 'Запуск ручной синхронизации',
   'Unknown error.': 'Неизвестная ошибка.',
@@ -252,10 +314,10 @@ export const russian = {
   'Next: review the preview. No files change until you confirm.':
     'Далее: предпросмотр. Файлы не изменятся до вашего подтверждения.',
   'Review file': 'Просмотр файла',
-  'Resolve conflicts': 'Разрешение конфликтов',
-  'Sync preview': 'Предпросмотр синхронизации',
-  'Skip remaining downloads': 'Пропустить оставшиеся скачивания',
-  'Skip remaining uploads': 'Пропустить оставшиеся отправки',
+  'Resolve conflicts': 'Разбор правок',
+  'Sync preview': 'Проверка изменений',
+  'Skip remaining downloads': 'Пропустить скачивания',
+  'Skip remaining uploads': 'Пропустить отправки',
   'Resolve conflicts (': 'Разрешить конфликты (',
   'Edit resolutions': 'Изменить решения',
   'Confirm sync': 'Подтвердить синхронизацию',

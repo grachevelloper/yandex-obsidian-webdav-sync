@@ -5,6 +5,8 @@ import { checkCancellation, SyncInterrupted } from './errors';
 import { runConcurrent } from './concurrency';
 import { FileProgress, type ProgressSink } from './progress';
 import { planAction } from './modes';
+import { prepareTextMerge } from './text-merge';
+import { detectMoves } from './detect-moves';
 import type { PlanEntry, SyncPlan, SyncState, SyncStore, SyncMode } from './types';
 
 export async function planSync(
@@ -58,13 +60,20 @@ export async function planSync(
           checkCancellation(signal);
           if ((localPaths.has(path) && !here) || (remotePaths.has(path) && !there))
             throw new Error(t('A listed file disappeared. Prepare a new preview.'));
-          const action = planAction(mode, here, there, baseline);
+          let action = planAction(mode, here, there, baseline);
+          const merge =
+            action === 'conflict' && baseline && here && there
+              ? await prepareTextMerge(local, remote, path, baseline, here, there.hash)
+              : undefined;
+          checkCancellation(signal);
+          if (merge && merge.every((chunk) => 'text' in chunk)) action = 'merge';
           entries[index] = {
             path,
             action,
             baseline,
             localHash: here?.hash,
             remoteHash: there?.hash,
+            ...(merge ? { merge } : {}),
             ...(action === 'conflict' && here ? { copyPath: conflictPath(path, here.hash) } : {}),
           };
         } catch (error) {
@@ -81,5 +90,5 @@ export async function planSync(
 
   checkCancellation(signal);
   log('info', t('Prepared read-only sync preview'), { files: entries.length });
-  return { scope: state.scope, mode, entries };
+  return { scope: state.scope, mode, entries: mode === 'two-way' ? detectMoves(entries) : entries };
 }

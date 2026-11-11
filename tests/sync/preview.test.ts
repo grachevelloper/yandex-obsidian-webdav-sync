@@ -8,6 +8,25 @@ import type { Snapshot, SyncState, SyncStore } from '../../src/sync/types';
 class MemoryStore implements SyncStore {
   files = new Map<string, Snapshot>();
   writes: string[] = [];
+  baselines = new Map<string, Snapshot>();
+  recovered = new Map<string, Snapshot>();
+
+  async readBaseline(path: string) {
+    return this.baselines.get(path);
+  }
+
+  async saveBaseline(path: string, file: Snapshot) {
+    this.baselines.set(path, file);
+  }
+
+  async remove(path: string, expected: Snapshot) {
+    assert.equal(this.files.get(path)?.hash, expected.hash);
+    this.files.delete(path);
+  }
+
+  async preserve(file: Snapshot) {
+    this.recovered.set(file.hash, file);
+  }
 
   async set(path: string, text: string) {
     this.files.set(path, await snapshot(new TextEncoder().encode(text).buffer));
@@ -61,6 +80,170 @@ test('previews uploads, downloads, conflicts and unchanged files without writing
   assert.equal(result.uploaded, 2);
   assert.equal(result.downloaded, 2);
   assert.deepEqual(local.files, remote.files);
+});
+
+test('remembers the common note and previews a merge of independent changes', async () => {
+  const { local, remote, state } = setup();
+  const path = 'meeting.md';
+  const original = '# Meeting\n\n09:00\n\nOld item\n\nEnd\n';
+  const device = original.replace('09:00', '10:00');
+  const disk = original.replace('Old item\n', '');
+  const combined = device.replace('Old item\n', '');
+  await local.set(path, original);
+  await remote.set(path, original);
+  await executePlan(local, remote, state, await planSync(local, remote, state), async () => {});
+
+  await local.set(path, device);
+  await remote.set(path, disk);
+  const plan = await planSync(local, remote, state);
+  assert.equal(plan.entries[0]?.action, 'merge');
+  assert.equal(local.writes.length + remote.writes.length, 0);
+
+  const result = await executePlan(local, remote, state, plan, async () => {});
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.merged, 1);
+  assert.equal(new TextDecoder().decode((await local.read(path))?.data), combined);
+  assert.equal(new TextDecoder().decode((await remote.read(path))?.data), combined);
+  assert.equal(new TextDecoder().decode((await local.readBaseline(path))?.data), combined);
+});
+
+test('keeps separate changes while asking about competing insertions at the end', async () => {
+  const { local, remote, state } = setup();
+  const path = 'meeting.md';
+  const original = '# Meeting\n\nAgenda\n';
+  await local.set(path, original);
+  await remote.set(path, original);
+  await executePlan(local, remote, state, await planSync(local, remote, state), async () => {});
+  await local.set(path, '# Planning\n\nAgenda\nDevice note\n');
+  await remote.set(path, original + 'Disk note\n');
+
+  const plan = await planSync(local, remote, state);
+  assert.equal(plan.entries[0]?.action, 'conflict');
+  assert.deepEqual(plan.entries[0]?.merge, [
+    { text: '# Planning\n\nAgenda\n' },
+    { local: 'Device note\n', remote: 'Disk note\n', base: '' },
+  ]);
+});
+
+test('pairs an unambiguous move and leaves a single file on both sides after confirmation', async () => {
+  const { local, remote, state } = setup();
+  const from = 'Plans/note.md';
+  const to = 'Archive/note.md';
+  await remote.set(from, 'shared note');
+  const original = await remote.read(from);
+  assert.ok(original);
+  state.hashes[from] = original.hash;
+  await local.set(to, 'shared note');
+
+  const plan = await planSync(local, remote, state);
+  assert.equal(plan.entries.length, 1);
+  assert.equal(plan.entries[0]?.action, 'move');
+  assert.equal(plan.entries[0]?.move?.targetPath, to);
+  assert.ok(await remote.read(from));
+  assert.equal(await remote.read(to), undefined);
+
+  const result = await executePlan(local, remote, state, plan, async () => {});
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.moved, 1);
+  assert.deepEqual([...local.files.keys()], [to]);
+  assert.deepEqual([...remote.files.keys()], [to]);
+  assert.equal(state.hashes[from], undefined);
+  assert.equal(state.hashes[to], original.hash);
+});
+
+test('leaves multiple matching paths for review instead of guessing a move', async () => {
+  const { local, remote, state } = setup();
+  const originalPath = 'note.md';
+  const newPaths = ['first/note.md', 'second/note.md'];
+  await remote.set(originalPath, 'shared text');
+  const original = await remote.read(originalPath);
+  assert.ok(original);
+  state.hashes[originalPath] = original.hash;
+  for (const path of newPaths) await local.set(path, 'shared text');
+
+  const plan = await planSync(local, remote, state);
+  const originalEntry = plan.entries.find((entry) => entry.path === originalPath);
+  assert.equal(originalEntry?.action, 'download');
+  assert.match(originalEntry.message ?? '', /Several files match/);
+  assert.equal(plan.entries.length, 3);
+  assert.equal(
+    plan.entries.some((entry) => entry.action === 'move'),
+    false,
+  );
+});
+
+test('renames an incoming file after confirmation and refuses a newly occupied name', async () => {
+  for (const occupied of [false, true]) {
+    const { local, remote, state } = setup();
+    const from = 'Plans/note.md';
+    const to = 'Plans/renamed.md';
+    await remote.set(from, 'shared note');
+    const plan = await planSync(local, remote, state);
+    const entry = plan.entries[0];
+    assert.ok(entry);
+    entry.renameTo = to;
+    if (occupied) await local.set(to, 'unrelated file');
+
+    const result = await executePlan(local, remote, state, plan, async () => {});
+    if (occupied) {
+      assert.equal(result.errors.length, 1);
+      assert.ok(await remote.read(from));
+      assert.equal(await remote.read(to), undefined);
+      assert.equal(new TextDecoder().decode((await local.read(to))?.data), 'unrelated file');
+    } else {
+      assert.deepEqual(result.errors, []);
+      assert.equal(result.renamed, 1);
+      assert.deepEqual([...local.files.keys()], [to]);
+      assert.deepEqual([...remote.files.keys()], [to]);
+      assert.equal(new TextDecoder().decode((await local.read(to))?.data), 'shared note');
+    }
+  }
+});
+
+test('keeps both original and destination copies if removing a moved source fails', async () => {
+  const { local, remote, state } = setup();
+  const from = 'Plans/note.md';
+  const to = 'Archive/note.md';
+  await remote.set(from, 'shared note');
+  const original = await remote.read(from);
+  assert.ok(original);
+  state.hashes[from] = original.hash;
+  await local.set(to, 'shared note');
+  const plan = await planSync(local, remote, state);
+  remote.remove = async () => {
+    throw new Error('Deletion failed');
+  };
+
+  const result = await executePlan(local, remote, state, plan, async () => {});
+  assert.match(result.errors[0] ?? '', /Deletion failed/);
+  assert.equal(result.moved, undefined);
+  assert.deepEqual(await remote.read(from), original);
+  assert.deepEqual(await remote.read(to), original);
+  assert.deepEqual(await local.read(to), original);
+  assert.deepEqual(local.recovered.get(original.hash), original);
+  assert.equal(state.hashes[from], original.hash);
+  assert.equal(state.hashes[to], undefined);
+});
+
+test('falls back to manual conflict review when the common text is missing or unreadable', async () => {
+  const cases = ['missing', 'unreadable'] as const;
+  for (const availability of cases) {
+    const { local, remote, state } = setup();
+    const path = 'note.md';
+    await local.set(path, 'local edit');
+    await remote.set(path, 'remote edit');
+    const original = await snapshot(new TextEncoder().encode('original').buffer);
+    state.hashes[path] = original.hash;
+    if (availability === 'unreadable')
+      local.readBaseline = async () => {
+        throw new Error('Storage unavailable');
+      };
+
+    const plan = await planSync(local, remote, state);
+    assert.equal(plan.entries[0]?.action, 'conflict');
+    assert.equal(plan.entries[0]?.merge, undefined);
+    assert.equal(local.writes.length + remote.writes.length, 0);
+  }
 });
 
 test('refuses a changed source, a changed destination or a newly appeared file after preview', async () => {

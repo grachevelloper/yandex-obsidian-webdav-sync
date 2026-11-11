@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { JSDOM } from 'jsdom';
-import * as obsidian from '../ui/obsidian-host.mjs';
+import * as obsidian from '../helpers/obsidian-host.mjs';
 
 const bundle = await readFile('main.js', 'utf8');
 const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
@@ -73,9 +73,10 @@ test('the release bundle loads, initializes and checks WebDAV without Node globa
     await plugin.testConnection();
     assert.deepEqual(requestedPaths, ['/', '/Obsidian']);
     assert.equal(plugin.checkingConnection, false);
+    assert.equal(plugin.connectionResult.kind, 'success');
     assert.equal(
-      plugin.connectionResult,
-      'Подключено. Логин, пароль приложения и доступ к папке верны. Файлы не изменялись.',
+      plugin.connectionResult.message,
+      'Логин, пароль приложения и доступ к папке верны. Файлы не изменялись.',
     );
     plugin.onunload();
   } finally {

@@ -11,7 +11,7 @@ function testFiles(directory) {
 
 const result = spawnSync(
   process.execPath,
-  ['--import', 'tsx', '--import', './tests/runtime.mjs', '--test', ...testFiles('tests')],
+  ['--import', 'tsx', '--import', './tests/helpers/setup.mjs', '--test', ...testFiles('tests')],
   {
     stdio: 'inherit',
   },

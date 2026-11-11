@@ -5,16 +5,27 @@ export interface FileDraft {
   kind: 'text' | 'local' | 'remote';
   text: string;
   edited: boolean;
+  source?: 'local' | 'remote';
 }
 
 export interface FileReviewView {
   localPreview?: AttachmentPreview;
   remotePreview?: AttachmentPreview;
   singleFile?: boolean;
+  embedded?: boolean;
   markedForDeletion: boolean;
   hasLocal: boolean;
   hasRemote: boolean;
   path: string;
+  movingTo?: string;
+  mergeConflicts: {
+    index: number;
+    local: string;
+    remote: string;
+    base: string;
+    selected?: 'local' | 'remote';
+  }[];
+  rename?: { stem: string; extension: string; error?: string };
   index: number;
   total: number;
   resolved: number;
@@ -35,6 +46,8 @@ export interface FileReviewActions {
   select(this: void, kind: 'local' | 'remote' | 'both'): void;
   tab(this: void, kind: 'local' | 'remote' | 'result'): void;
   edit(this: void, text: string): void;
+  chooseChunk(this: void, index: number, side: 'local' | 'remote'): void;
+  rename(this: void, name: string): string | undefined;
   replace(this: void): void;
   keepEditing(this: void): void;
   skip(this: void): void;
@@ -67,16 +80,78 @@ export function renderFileReview(
   container.classList.add('yds-conflict-editor');
   container.dataset.tab = view.tab;
   const header = create('div', 'yds-conflict-header');
-  header.append(
-    create('code', 'yds-path', view.path),
-    create('span', '', String(view.index + 1) + ' / ' + view.total),
-  );
+  const rename = view.rename;
+  if (rename) {
+    const title = create('div', 'yds-review-filename');
+    const name = button(rename.stem + rename.extension, () => {
+      const initial = rename.stem;
+      const input = create('input', '');
+      input.type = 'text';
+      input.value = initial;
+      input.setAttribute('aria-label', t('File name without extension'));
+      const extension = create('span', '', rename.extension);
+      const field = create('div', 'yds-filename-field');
+      field.append(input, extension);
+      name.replaceWith(field);
+      input.focus();
+      input.select();
+
+      const checkName = () => {
+        rename.error = actions.rename(input.value);
+        warning.textContent = rename.error ?? '';
+        input.setAttribute('aria-invalid', String(!!rename.error));
+        const save = container.querySelector<HTMLButtonElement>('[data-role="resolve"]');
+        if (save) save.disabled = !!rename.error || unresolved || !!view.pending;
+      };
+      input.addEventListener('input', checkName);
+      input.addEventListener('blur', () => {
+        checkName();
+        if (rename.error) return;
+        rename.stem = input.value.trim();
+        name.textContent = rename.stem + rename.extension;
+        field.replaceWith(name);
+      });
+      input.addEventListener('keydown', (event) => {
+        if (event.isComposing || (event.key !== 'Enter' && event.key !== 'Escape')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.key === 'Escape') input.value = initial;
+        input.blur();
+        if (name.isConnected) name.focus();
+      });
+    });
+    name.classList.add('yds-rename-file');
+    name.title = t('Edit file name');
+    name.setAttribute('aria-label', t('Edit file name: {0}', { '0': view.path }));
+    const warning = create('span', 'yds-filename-warning', rename.error);
+    warning.setAttribute('role', 'alert');
+    title.append(name, warning);
+    header.append(title);
+  } else header.append(create('code', 'yds-path', view.path));
+  if (!view.singleFile)
+    header.append(create('span', '', String(view.index + 1) + ' / ' + view.total));
   const previous = button('‹', () => actions.move(-1));
   const next = button('›', () => actions.move(1));
   previous.setAttribute('aria-label', t('Previous conflict'));
   next.setAttribute('aria-label', t('Next conflict'));
   if (!view.singleFile) header.append(previous, next);
   container.append(header);
+  const backLabel = view.embedded
+    ? t('Close file')
+    : view.singleFile
+      ? t('Back to preview')
+      : t('Cancel run');
+  const unresolved =
+    (view.singleFile || !view.allResolved) &&
+    view.mergeConflicts.some((conflict) => !conflict.selected);
+
+  if (view.movingTo) {
+    const path = create('p', 'yds-preview-target', t('New path: {0}', { '0': view.movingTo }));
+    const footer = create('div', 'yds-preview-actions');
+    footer.append(button(backLabel, actions.cancel), button(t('Skip file'), actions.skip));
+    container.append(path, footer);
+    return;
+  }
 
   const tabs = create('div', 'yds-conflict-tabs');
   tabs.setAttribute('role', 'tablist');
@@ -94,13 +169,14 @@ export function renderFileReview(
     tabs.append(tab);
   }
   container.append(tabs);
+  const body = create('div', 'yds-file-review-body');
+  container.append(body);
 
-  if (view.loading)
-    container.append(create('p', 'yds-conflict-status', t('Reading current versions…')));
+  if (view.loading) body.append(create('p', 'yds-conflict-status', t('Reading current versions…')));
   if (view.error) {
     const error = create('p', 'yds-preview-warning', view.error);
     error.setAttribute('role', 'alert');
-    container.append(error);
+    body.append(error);
   }
   if (!view.loading && !view.error && view.draft) {
     const versions = create('div', 'yds-conflict-sources');
@@ -118,7 +194,7 @@ export function renderFileReview(
         ),
       );
       const exists = kind === 'local' ? view.hasLocal : view.hasRemote;
-      if (exists)
+      if (exists && view.mergeConflicts.length === 0)
         heading.append(
           button(kind === 'local' ? t('Use local') : t('Use Disk'), () => actions.select(kind)),
         );
@@ -167,14 +243,51 @@ export function renderFileReview(
         t('Result · ') + (view.draft.kind === 'text' ? t('editable') : t('selected version')),
       ),
     );
-    if (view.draft.kind === 'text') {
+    if (view.mergeConflicts.length) {
+      const choices = create('div', 'yds-merge-choices');
+      choices.append(
+        create(
+          'p',
+          'yds-conflict-status',
+          t('Choose each conflicting section. Other edits are already combined.'),
+        ),
+      );
+      for (const [position, conflict] of view.mergeConflicts.entries()) {
+        const section = create('section', 'yds-merge-chunk');
+        section.append(create('strong', '', t('Section {0}', { '0': position + 1 })));
+        const options = create('div', 'yds-merge-options');
+        for (const side of ['local', 'remote'] as const) {
+          const option = create('div', '');
+          const choose = button(side === 'local' ? t('Use local') : t('Use Disk'), () =>
+            actions.chooseChunk(conflict.index, side),
+          );
+          choose.dataset.mergeChoice = `${conflict.index}-${side}`;
+          choose.setAttribute('aria-pressed', String(conflict.selected === side));
+          if (conflict.selected === side) choose.classList.add('mod-cta');
+          option.append(
+            create('pre', '', conflict[side] || t('This version removed these lines.')),
+            choose,
+          );
+          options.append(option);
+        }
+        const base = create('details', '');
+        base.append(
+          create('summary', '', t('Last common text')),
+          create('pre', '', conflict.base || t('No text at this position.')),
+        );
+        section.append(options, base);
+        choices.append(section);
+      }
+      result.append(choices);
+    }
+    if (view.draft.kind === 'text' && !unresolved) {
       const editor = create('textarea', 'yds-conflict-input');
       editor.setAttribute('aria-label', t('Merged result for ') + view.path);
       editor.spellcheck = false;
       editor.value = view.draft.text;
       editor.addEventListener('input', () => actions.edit(editor.value));
       result.append(editor);
-    } else {
+    } else if (view.draft.kind !== 'text') {
       result.append(
         create(
           'p',
@@ -185,8 +298,7 @@ export function renderFileReview(
         ),
       );
     }
-    container.append(versions);
-    container.append(result);
+    body.append(versions, result);
   }
 
   if (view.pending) {
@@ -197,15 +309,16 @@ export function renderFileReview(
       button(t('Keep editing'), actions.keepEditing),
       button(t('Replace result'), actions.replace),
     );
-    container.append(replacement);
+    body.append(replacement);
   }
 
   const footer = create('div', 'yds-preview-actions');
-  footer.append(
-    button(view.singleFile ? t('Back to preview') : t('Cancel run'), actions.cancel),
-    button(t('Skip file'), actions.skip),
-  );
-  if (view.localText !== undefined && view.remoteText !== undefined)
+  footer.append(button(backLabel, actions.cancel), button(t('Skip file'), actions.skip));
+  if (
+    view.localText !== undefined &&
+    view.remoteText !== undefined &&
+    view.mergeConflicts.length === 0
+  )
     footer.append(button(t('Use both'), () => actions.select('both')));
   if (view.markedForDeletion) {
     container.append(
@@ -231,7 +344,12 @@ export function renderFileReview(
   );
   resolve.classList.add('mod-cta');
   resolve.dataset.role = 'resolve';
-  resolve.disabled = !!view.pending || view.loading || (!!view.error && !view.allResolved);
+  resolve.disabled =
+    !!view.pending ||
+    view.loading ||
+    unresolved ||
+    !!view.rename?.error ||
+    (!!view.error && !view.allResolved);
   footer.append(resolve);
   const status = create(
     'p',
@@ -244,5 +362,6 @@ export function renderFileReview(
       'Apply to preview stages your choice. Files change only after final confirmation.',
     );
   status.setAttribute('aria-live', 'polite');
-  container.append(footer, status);
+  container.append(footer);
+  if (!view.embedded) container.append(status);
 }

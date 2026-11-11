@@ -14,15 +14,9 @@ export async function applyResolution(
   result: SyncResult,
   checkActive: () => void,
   log: LogSink,
-): Promise<string> {
-  const data =
-    resolution.kind === 'text'
-      ? new TextEncoder().encode(resolution.text).buffer
-      : resolution.kind === 'local'
-        ? here?.data
-        : there?.data;
-  if (!data) throw new Error(t('The selected version is missing. Prepare a new preview.'));
-  const desired = await snapshot(data);
+): Promise<Snapshot> {
+  const desired = await resolvedFile(resolution, here, there);
+  const { data } = desired;
 
   for (const [side, version] of [
     ['local', here],
@@ -49,5 +43,17 @@ export async function applyResolution(
   }
 
   log('info', t('Applied reviewed file version to both sides'), { path });
-  return desired.hash;
+  return desired;
+}
+
+export async function resolvedFile(
+  resolution: Exclude<FileDecision, { kind: 'skip' | 'delete' }>,
+  here: Snapshot | undefined,
+  there: Snapshot | undefined,
+): Promise<Snapshot> {
+  if (resolution.kind === 'text') return snapshot(new TextEncoder().encode(resolution.text).buffer);
+
+  const file = resolution.kind === 'local' ? here : there;
+  if (!file) throw new Error(t('The selected version is missing. Prepare a new preview.'));
+  return file;
 }
