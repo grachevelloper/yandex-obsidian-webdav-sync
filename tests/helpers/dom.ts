@@ -18,6 +18,11 @@ export function createDom(...options: ConstructorParameters<typeof JSDOM>) {
         return element;
       },
     },
+    createDiv: {
+      value(this: Node, options: DomElementInfo = {}) {
+        return this.createEl('div', options);
+      },
+    },
     createSpan: {
       value(this: Node, options: DomElementInfo = {}) {
         return this.createEl('span', options);

@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Синхронизация · галерея Obsidian</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font:
+          15px/1.5 -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+        color: #28262b;
+        background: #f4f3f0;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      header {
+        padding: 28px 32px 20px;
+        background: #fff;
+        border-bottom: 1px solid #d8d5d0;
+      }
+      h1 {
+        font-size: 26px;
+        line-height: 1.2;
+        margin: 0 0 10px;
+        font-weight: 600;
+      }
+      p {
+        margin: 8px 0;
+        max-width: 90ch;
+      }
+      .meta,
+      .hint {
+        color: #625e68;
+        font-size: 13px;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        gap: 16px;
+        margin-top: 20px;
+      }
+      label {
+        min-width: 0;
+        max-width: 100%;
+        display: grid;
+        gap: 5px;
+        font-size: 13px;
+      }
+      select {
+        min-width: 0;
+        max-width: 100%;
+      }
+      select,
+      button,
+      a.action {
+        font: inherit;
+        min-height: 44px;
+        border: 1px solid #c7c2ce;
+        border-radius: 6px;
+        background: #fff;
+        color: #28262b;
+        padding: 8px 12px;
+      }
+      select:focus-visible,
+      button:focus-visible,
+      a:focus-visible {
+        outline: 2px solid #7054b5;
+        outline-offset: 3px;
+      }
+      main {
+        display: grid;
+        grid-template-columns: 270px minmax(0, 1fr);
+        gap: 24px;
+        padding: 24px 32px;
+      }
+      nav {
+        max-height: calc(100vh - 260px);
+        overflow: auto;
+        padding-right: 12px;
+      }
+      nav h2 {
+        font-size: 13px;
+        color: #625e68;
+        margin: 20px 0 6px;
+      }
+      nav h2:first-child {
+        margin-top: 0;
+      }
+      nav button {
+        display: block;
+        width: 100%;
+        border: 0;
+        text-align: left;
+        background: transparent;
+        margin: 2px 0;
+        font-size: 13px;
+      }
+      nav button[aria-current='true'] {
+        background: #e9e1f7;
+        color: #493079;
+        font-weight: 600;
+      }
+      main > section {
+        min-width: 0;
+      }
+      .screen-title {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      h2 {
+        font-size: 20px;
+        margin: 0;
+      }
+      .action {
+        font-size: 13px !important;
+        text-decoration: none;
+      }
+      .screens {
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      figure {
+        margin: 0;
+        max-width: 100%;
+      }
+      figcaption {
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: #625e68;
+      }
+      img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        border: 1px solid #c7c2ce;
+        background: #fff;
+      }
+      .screens.compare figure {
+        flex: 0 1 auto;
+      }
+      .screens.compare figure[data-device='desktop'] {
+        flex: 1 0 100%;
+      }
+      details {
+        margin-top: 20px;
+        font-size: 13px;
+      }
+      pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .notice {
+        margin-top: 16px;
+        padding: 12px 16px;
+        border: 1px solid #c7c2ce;
+        border-radius: 6px;
+        background: #fff;
+      }
+      .error {
+        color: #a52132;
+      }
+      @media (max-width: 850px) {
+        header {
+          padding: 20px;
+        }
+        main {
+          grid-template-columns: 1fr;
+          padding: 20px;
+        }
+        nav {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Синхронизация в Obsidian</h1>
+      <p>
+        Настоящие окна плагина в отдельном тестовом Obsidian. Выберите этап и сравните телефон с
+        компьютером.
+      </p>
+      <p class="meta" id="meta">Загрузка снимков…</p>
+      <div class="controls">
+        <label>Этап<select id="scenario"></select></label>
+        <label>Экран<select id="device"></select></label>
+        <label
+          >Тема<select id="theme">
+            <option value="light">Светлая</option>
+            <option value="dark">Тёмная</option>
+          </select></label
+        >
+        <label
+          >Часть окна<select id="view">
+            <option value="top">Начало</option>
+            <option value="bottom">После прокрутки</option>
+          </select></label
+        >
+        <button type="button" id="compare" aria-pressed="false">Сравнить все размеры</button>
+      </div>
+    </header>
+    <main>
+      <nav aria-label="Этапы синхронизации" id="nav"></nav>
+      <section>
+        <div class="screen-title">
+          <h2 id="title"></h2>
+          <a class="action" id="original" target="_blank" rel="noopener">Открыть оригинал</a>
+        </div>
+        <div class="screens" id="screens"></div>
+        <p class="notice" id="finding" hidden></p>
+        <p class="hint">
+          370 и 420 — ширина содержимого в пикселях. Мобильная компоновка включена через Obsidian
+          app.emulateMobile. Это эмуляция на компьютере: системная клавиатура, вырезы экрана и
+          поведение iOS/Android требуют проверки на устройстве.
+        </p>
+        <details>
+          <summary>Размеры и проверка переполнения</summary>
+          <pre id="metrics"></pre>
+        </details>
+      </section>
+    </main>
+    <script type="application/json" id="gallery-manifest">
+      <!-- gallery-manifest -->
+    </script>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const manifest = JSON.parse($('gallery-manifest').textContent);
+      const localFile = location.protocol === 'file:';
+      const params = new URLSearchParams(localFile ? location.hash.slice(1) : location.search);
+      let compare = params.get('compare') === 'true';
+      const findings = {
+        'preview-long':
+          'Проверьте читаемость: отступ каждой вложенной папки сужает колонку имени. На 370 px длинное имя разбивается на множество строк.',
+        preview:
+          'На телефоне оцените высоту строк и кнопки: таблица рассчитана на плотное отображение. До разрешения конфликта основная кнопка отключена.',
+        'preview-many':
+          'Большой список прокручивается внутри окна. Проверьте, остаётся ли очевидным путь к подтверждению под списком.',
+        'conflict-local':
+          'На телефоне версии разделены на вкладки. Кнопки выбора версии и нижние действия могут потребовать прокрутки.',
+        'conflict-remote':
+          'На телефоне версии разделены на вкладки. Сравните удобство переключения и выбора версии.',
+        'conflict-result':
+          'На телефоне результат показан отдельной вкладкой. Проверьте длину экрана и расположение кнопок под редактором.',
+      };
+      $('meta').textContent =
+        `Obsidian ${manifest.obsidianVersion} · ${manifest.measurements.length} снимков · исходный коммит ${manifest.commit.slice(0, 7)} · ${manifest.language.toUpperCase()} · ${new Date(manifest.capturedAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })} МСК`;
+      for (const device of manifest.devices) $('device').add(new Option(device.title, device.id));
+      let group;
+      for (const scenario of manifest.scenarios) {
+        if (scenario.group !== group) {
+          group = scenario.group;
+          const h = document.createElement('h2');
+          h.textContent = group;
+          $('nav').append(h);
+        }
+        $('scenario').add(new Option(`${scenario.group} · ${scenario.title}`, scenario.id));
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = scenario.title;
+        button.dataset.id = scenario.id;
+        button.onclick = () => {
+          $('scenario').value = scenario.id;
+          render();
+        };
+        $('nav').append(button);
+      }
+      $('scenario').value = manifest.scenarios.some((s) => s.id === params.get('scenario'))
+        ? params.get('scenario')
+        : (manifest.scenarios.find((s) => s.id === 'preview')?.id ?? manifest.scenarios[0].id);
+      $('device').value = manifest.devices.some((d) => d.id === params.get('device'))
+        ? params.get('device')
+        : manifest.devices[0].id;
+      $('view').value = params.get('view') === 'bottom' ? 'bottom' : 'top';
+      $('theme').value = params.get('theme') === 'dark' ? 'dark' : 'light';
+      function render() {
+        const id = $('scenario').value,
+          device = $('device').value,
+          theme = $('theme').value;
+        const scenario = manifest.scenarios.find((s) => s.id === id);
+        $('title').textContent = scenario.title;
+        $('nav')
+          .querySelectorAll('button')
+          .forEach((button) =>
+            button.setAttribute('aria-current', String(button.dataset.id === id)),
+          );
+        $('compare').setAttribute('aria-pressed', String(compare));
+        $('compare').textContent = compare ? 'Показать один размер' : 'Сравнить все размеры';
+        $('screens').classList.toggle('compare', compare);
+        $('screens').replaceChildren();
+        const metrics = manifest.measurements.filter(
+          (m) => m.scenario === id && m.theme === theme && (compare || m.device === device),
+        );
+        for (const m of metrics) {
+          const figure = document.createElement('figure'),
+            caption = document.createElement('figcaption'),
+            link = document.createElement('a'),
+            img = document.createElement('img');
+          caption.textContent = manifest.devices.find((d) => d.id === m.device).title;
+          link.href = m.file;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          figure.dataset.device = m.device;
+          const screenshot = $('view').value === 'bottom' && m.bottomFile ? m.bottomFile : m.file;
+          img.src = screenshot;
+          link.href = screenshot;
+          img.alt = `${scenario.title} — ${caption.textContent}, ${theme === 'light' ? 'светлая' : 'тёмная'} тема`;
+          img.width = m.viewport.width;
+          img.height = m.viewport.height;
+          link.append(img);
+          figure.append(caption, link);
+          $('screens').append(figure);
+        }
+        const originalMetric = metrics.find((m) => m.device === device) ?? metrics[0];
+        $('original').href =
+          $('view').value === 'bottom' && originalMetric.bottomFile
+            ? originalMetric.bottomFile
+            : originalMetric.file;
+        $('metrics').textContent = JSON.stringify(metrics, null, 2);
+        $('finding').hidden = !findings[id];
+        $('finding').textContent = findings[id] ?? '';
+        const selection = new URLSearchParams({
+          scenario: id,
+          device,
+          theme,
+          compare: String(compare),
+          view: $('view').value,
+        });
+        history.replaceState(null, '', `${localFile ? '#' : '?'}${selection}`);
+      }
+      for (const id of ['scenario', 'device', 'theme', 'view']) $(id).onchange = render;
+      $('compare').onclick = () => {
+        compare = !compare;
+        render();
+      };
+      render();
+    </script>
+  </body>
+</html>

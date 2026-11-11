@@ -39,7 +39,11 @@ export class SyncLog {
   };
 
   readonly record: LogSink = (level, message, details) => {
-    if (this.data.events.length >= MAX_LOG_EVENTS) {
+    const isRecoveryRecord =
+      typeof details?.path === 'string' && typeof details.recoveryHash === 'string';
+
+    // The report needs every recovery record to offer the saved originals as copies.
+    if (this.data.events.length >= MAX_LOG_EVENTS && !isRecoveryRecord) {
       this.data.droppedEvents++;
       return;
     }

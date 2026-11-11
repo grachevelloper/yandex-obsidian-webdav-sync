@@ -4,11 +4,20 @@ import type { FileManager, TFile, Vault } from 'obsidian';
 import { VaultStore } from '../../src/vault/store';
 import { snapshot } from '../../src/sync/snapshot';
 
-function setup() {
+function setup(baselineFolder?: string) {
   const files = new Map<string, ArrayBuffer>();
   const folders = new Set<string>();
   const trashed: string[] = [];
+  const renamed: [string, string][] = [];
   const fileManager = {
+    renameFile: async (entry: TFile, target: string) => {
+      const data = files.get(entry.path);
+      assert.ok(data);
+      assert.equal(files.has(target), false);
+      renamed.push([entry.path, target]);
+      files.set(target, data);
+      files.delete(entry.path);
+    },
     trashFile: async (entry: TFile) => {
       const data = files.get(entry.path);
       assert.ok(data);
@@ -57,6 +66,14 @@ function setup() {
         assert.equal(folders.has(path), false, 'Adapter rejects duplicate directory creation');
         folders.add(path);
       },
+      readBinary: async (path: string) => files.get(path),
+      stat: async (path: string) => {
+        const data = files.get(path);
+        return data ? { type: 'file', size: data.byteLength } : null;
+      },
+      remove: async (path: string) => {
+        files.delete(path);
+      },
       writeBinary: async (path: string, data: ArrayBuffer) => {
         files.set(path, data);
       },
@@ -67,10 +84,12 @@ function setup() {
     vault as unknown as Vault,
     fileManager as unknown as FileManager,
     '.obsidian/plugins/yandex-disk-sync/recovery',
+    undefined,
+    baselineFolder,
   );
   const bytes = (value: string) => new TextEncoder().encode(value).buffer;
 
-  return { store, files, bytes, trashed };
+  return { store, files, bytes, trashed, renamed };
 }
 
 test('creates nested notes and preserves binary bytes', async () => {
@@ -110,6 +129,37 @@ test('backs up the replaced version outside synchronized files', async () => {
     (await store.list()).map((file) => file.path),
     ['note.md'],
   );
+});
+
+test('keeps one private shared text per path and can remove it when the path changes', async () => {
+  const folder = '.obsidian/plugins/yandex-disk-sync/common-text';
+  const { store, files, bytes } = setup(folder);
+  const path = 'note.md';
+  const first = await snapshot(bytes('first text'));
+  const last = await snapshot(bytes('shared text'));
+  await store.saveBaseline(path, first);
+  await store.saveBaseline(path, last);
+
+  assert.deepEqual(await store.readBaseline(path), last);
+  assert.equal([...files.keys()].filter((name) => name.startsWith(folder + '/')).length, 1);
+  assert.deepEqual(await store.list(), []);
+
+  await store.forgetBaseline(path);
+  assert.equal(await store.readBaseline(path), undefined);
+});
+
+test('restores a separate copy without replacing the current note', async () => {
+  const { store, files, bytes } = setup();
+  const original = await snapshot(bytes('old text'));
+  await store.preserve(original);
+  files.set('note.md', bytes('current text'));
+  const restored = await store.restoreCopy('note.md', original.hash);
+  assert.notEqual(restored, 'note.md');
+  assert.deepEqual(files.get(restored), original.data);
+  assert.deepEqual(files.get('note.md'), bytes('current text'));
+  files.set(restored, bytes('another note'));
+  await assert.rejects(store.restoreCopy('note.md', original.hash), /already in use/);
+  assert.deepEqual(files.get(restored), bytes('another note'));
 });
 
 test('creates shared parent folders once when downloading two files concurrently', async () => {
@@ -161,4 +211,30 @@ test('mirror deletion preserves recovery bytes and uses the configured trash aft
     files.get('.obsidian/plugins/yandex-disk-sync/recovery/' + current.hash),
     bytes('new edit'),
   );
+});
+
+test('moves a note through the file manager and refuses stale sources or occupied targets', async () => {
+  const cases = ['unchanged', 'edited', 'occupied'] as const;
+  for (const change of cases) {
+    const { store, files, bytes, renamed } = setup();
+    const from = 'Notes/original.md';
+    const to = 'Archive/renamed.md';
+    files.set(from, bytes('original text'));
+    const original = await store.read(from);
+    assert.ok(original);
+    if (change === 'edited') files.set(from, bytes('new edit'));
+    if (change === 'occupied') files.set(to, bytes('another note'));
+
+    if (change === 'unchanged') {
+      await store.move(from, to, original);
+      assert.deepEqual(renamed, [[from, to]]);
+      assert.equal(files.has(from), false);
+      assert.deepEqual(files.get(to), original.data);
+    } else {
+      await assert.rejects(store.move(from, to, original), /changed/);
+      assert.deepEqual(renamed, []);
+      assert.deepEqual(files.get(from), bytes(change === 'edited' ? 'new edit' : 'original text'));
+      assert.deepEqual(files.get(to), change === 'occupied' ? bytes('another note') : undefined);
+    }
+  }
 });

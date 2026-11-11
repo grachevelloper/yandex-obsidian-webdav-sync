@@ -32,3 +32,95 @@ after it was read. Destructive actions require a confirmed sync preview.
 For device and WebDAV verification, use the [manual checklist](docs/manual-testing.md)
 with disposable vaults. Do not include credentials, private notes, local `data.json`
 or unredacted diagnostic logs in an issue or pull request.
+
+## Test layout
+
+Tests are grouped by the behavior they cover:
+
+- `tests/sync`, `tests/webdav`, `tests/vault`, `tests/shared`, `tests/settings`,
+  `tests/i18n` and `tests/logging`: behavior tests, run with `npm test`.
+- `tests/ui`: UI behavior in a simulated DOM, also run with `npm test`.
+- `tests/helpers`: shared DOM setup and the simulated Obsidian API.
+- `tests/runtime`: checks of the built plugin, run with `npm run test:bundle`
+  after building. `npm run build` includes these checks.
+- `tests/e2e`: Playwright tests in real Obsidian, run with `npm run ui:e2e`.
+  `helpers` contains the isolated host and synthetic data; `__screenshots__` contains
+  reference PNGs used by assertions. Keep those PNGs in version control.
+- `tests/e2e/gallery`: captures and displays synthetic UI states for manual
+  inspection, using `npm run ui:capture` and `npm run ui:gallery`.
+
+`scripts` contains repository commands only. Generated screenshots, comparison
+failures, logs and isolated gallery profiles belong in the ignored `.artifacts/`
+directory and can be removed after stopping the capture or gallery server.
+
+## UI gallery in real Obsidian
+
+The gallery captures the production UI classes inside a separate installed
+Obsidian instance, using its real Modal, Setting and ProgressBar components and
+its current default theme. This avoids a browser mock drifting away from Obsidian.
+Storybook is not required. Playwright controls the app through a local debugging
+connection and Obsidian's documented `app.emulateMobile()` mode.
+
+On macOS with Obsidian installed:
+
+```sh
+npm run ui:capture
+open .artifacts/ui-gallery/index.html
+```
+
+The gallery opens directly in your browser. Keep `index.html` and `screenshots/`
+together if you move it. For HTTP access, run `npm run ui:gallery` and open
+[the local address](http://127.0.0.1:4783) while that command is running.
+Choose a stage, theme and viewport, or compare all sizes. Switch to “После
+прокрутки” to inspect the bottom of long windows. The capture covers 36 scenarios at 370 × 800, 420 × 900 and
+1440 × 1000 in light and dark themes (216 PNGs). It includes connection settings,
+mode selection, listing/comparison, previews, mirror deletions, individual files,
+conflict tabs and editing, loading/failure states, transfers, retries, stopping,
+reports and logs. Long paths and a 150-file list exercise narrow layouts.
+
+All files, accounts and errors are synthetic. The harness starts no sync transport
+and uses only `.artifacts/ui-gallery/vault` and `.artifacts/ui-gallery/profile`.
+It never opens a personal vault. It disables updates in this isolated profile,
+records the running Obsidian version and source commit, fixes time for stable
+labels, and saves layout measurements and page errors to `manifest.json`.
+The gallery output stays under `.artifacts/ui-gallery/`.
+
+Overrides:
+
+```sh
+OBSIDIAN_EXECUTABLE=/path/to/Obsidian npm run ui:capture
+UI_SCENARIOS=preview,conflict-result UI_DEVICES=phone-370 UI_LANGUAGE=en npm run ui:capture
+UI_PORT=4784 npm run ui:gallery
+```
+
+A filtered capture replaces the gallery manifest with that subset. Run the full
+capture again to restore all scenarios. Capture one instance per worktree at a
+time; stop the gallery server before deleting its artifacts. Other operating
+systems can supply an executable path, but this harness has been verified on
+macOS only. Mobile emulation uses Obsidian's mobile UI in desktop Chromium; it does
+not validate the iOS WebKit engine, Android integration, safe areas, the software
+keyboard or physical touch. Test those on real devices before a release.
+
+References: [Obsidian mobile development](https://docs.obsidian.md/Plugins/Getting%20started/Mobile%20development),
+[Playwright screenshots](https://playwright.dev/docs/screenshots).
+
+### Playwright end-to-end tests
+
+Run `npm run ui:e2e` to test the real plugin in an isolated Obsidian vault on all
+three viewport sizes. Playwright clicks the settings and sync controls, verifies
+connection success and an authentication error, and follows an upload from mode
+selection through preview confirmation to the report. The fixture supplies WebDAV responses without contacting Yandex Disk. The test
+instance launches in the background on macOS.
+
+`toHaveScreenshot` compares the connection row and sync dialogs with the PNGs
+in `tests/e2e/__screenshots__/`. The snapshots use the default light theme
+in Obsidian 1.14.4 on macOS. The elapsed timer and report timestamp are hidden
+for comparison. Match the reference environment when updating the PNGs:
+
+```sh
+npm run ui:e2e -- --update-snapshots
+```
+
+Review the PNG changes along with the code. A normal run leaves the reference
+PNGs untouched and saves image diffs under `.artifacts/ui-e2e/results/` if a
+comparison fails.

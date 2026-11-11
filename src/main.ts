@@ -32,7 +32,7 @@ export default class WebDavSync extends Plugin {
   data: PluginData = loadPluginData(null);
   running = false;
   checkingConnection = false;
-  connectionResult?: string;
+  connectionResult?: { kind: 'success' | 'warning' | 'error'; message: string };
   private settingsTab?: SyncSettingsTab;
   private status?: HTMLElement;
   private logs?: LogRepository;
@@ -115,6 +115,7 @@ export default class WebDavSync extends Plugin {
     this.connectionResult = undefined;
     const previousLanguage = this.data.settings.language;
     Object.assign(this.data.settings, patch);
+    this.settingsTab?.refreshActivity();
     try {
       await this.persist();
       if (patch.language) {
@@ -144,7 +145,7 @@ export default class WebDavSync extends Plugin {
   async testConnection(): Promise<void> {
     if (this.running || this.checkingConnection || !this.ready) return;
     this.checkingConnection = true;
-    this.connectionResult = t('Checking connection…');
+    this.connectionResult = undefined;
     this.settingsTab?.refreshActivity();
     try {
       await this.saveQueue;
@@ -154,15 +155,20 @@ export default class WebDavSync extends Plugin {
         requestIntervalMs: settings.requestIntervalMs,
       });
       this.connectionResult = result.folderExists
-        ? t('Connected. Login, app password and folder access are valid. No files were changed.')
-        : t(
-            'Connected. Login and app password are valid, but the selected folder does not exist. No folder was created.',
-          );
+        ? {
+            kind: 'success',
+            message: t('Login, app password and folder access are valid. No files were changed.'),
+          }
+        : {
+            kind: 'warning',
+            message: t('Login and app password are valid. Check the folder path in settings.'),
+          };
     } catch (error) {
-      this.connectionResult =
-        error instanceof Error ? error.message : t('Connection check failed.');
+      this.connectionResult = {
+        kind: 'error',
+        message: error instanceof Error ? error.message : t('Connection check failed.'),
+      };
     } finally {
-      new Notice(this.connectionResult);
       this.checkingConnection = false;
       this.settingsTab?.refreshActivity();
     }
@@ -271,6 +277,7 @@ export default class WebDavSync extends Plugin {
       this.app.fileManager,
       `${this.pluginFolder()}/recovery`,
       include,
+      `${this.pluginFolder()}/common-text`,
     );
     const remote = new WebDavStore(
       settings,
@@ -288,6 +295,7 @@ export default class WebDavSync extends Plugin {
       mode === 'cloud-wins',
     );
     window.setFileLoader((entry) => loadFile(local, remote, entry, signal));
+    window.setRestoreCopy((path, hash) => local.restoreCopy(path, hash));
     const plan = await planSync(
       local,
       remote,

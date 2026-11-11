@@ -72,11 +72,11 @@ test('connection check times out a stalled request without starting another requ
   assert.equal(calls, 1);
 });
 
-test('plugin shows the localized connection result as a notice and releases the busy state', async (context) => {
+test('plugin records the localized connection outcome and releases the busy state', async (context) => {
   const bundle = await build({
     stdin: {
       contents: `export { default as WebDavSync } from './src/main';
-        export { notices, http } from './tests/ui/obsidian-host.mjs';
+        export { http } from './tests/helpers/obsidian-host.mjs';
         export { setLanguage, t } from './src/i18n';`,
       resolveDir: process.cwd(),
     },
@@ -84,11 +84,11 @@ test('plugin shows the localized connection result as a notice and releases the 
     write: false,
     platform: 'node',
     format: 'esm',
-    alias: { obsidian: path.resolve('tests/ui/obsidian-host.mjs') },
+    alias: { obsidian: path.resolve('tests/helpers/obsidian-host.mjs') },
   });
   const output = bundle.outputFiles[0];
   assert.ok(output);
-  const { WebDavSync, notices, http, setLanguage, t } = await import(
+  const { WebDavSync, http, setLanguage, t } = await import(
     `data:text/javascript;base64,${Buffer.from(output.contents).toString('base64')}`
   );
   const plugin = new WebDavSync(
@@ -101,26 +101,30 @@ test('plugin shows the localized connection result as a notice and releases the 
     {
       status: 207,
       language: 'en',
-      expected:
-        'Connected. Login, app password and folder access are valid. No files were changed.',
+      kind: 'success',
+      expected: 'Login, app password and folder access are valid. No files were changed.',
     },
     {
       status: 207,
       language: 'ru',
-      expected:
-        'Connected. Login, app password and folder access are valid. No files were changed.',
+      kind: 'success',
+      expected: 'Login, app password and folder access are valid. No files were changed.',
     },
     {
       status: 404,
       language: 'en',
-      expected:
-        'Connected. Login and app password are valid, but the selected folder does not exist. No folder was created.',
+      kind: 'warning',
+      expected: 'Login and app password are valid. Check the folder path in settings.',
     },
-    { status: 401, language: 'en', expected: 'Check your login, app password and WebDAV access.' },
+    {
+      status: 401,
+      language: 'en',
+      kind: 'error',
+      expected: 'Check your login, app password and WebDAV access.',
+    },
   ];
   for (const scenario of scenarios) {
     setLanguage(scenario.language);
-    notices.length = 0;
     http.send = async (request: { url: string }) => {
       const pathname = new URL(request.url).pathname;
       return response(
@@ -133,19 +137,17 @@ test('plugin shows the localized connection result as a notice and releases the 
     await plugin.testConnection();
     await pending;
     assert.equal(plugin.checkingConnection, false);
-    assert.equal(notices.length, 1);
-    assert.equal(notices[0], plugin.connectionResult);
-    assert.ok(notices[0].includes(t(scenario.expected)));
+    assert.equal(plugin.connectionResult?.kind, scenario.kind);
+    assert.ok(plugin.connectionResult?.message.includes(t(scenario.expected)));
   }
   context.mock.timers.enable({ apis: ['setTimeout'] });
-  notices.length = 0;
   http.send = () => new Promise(() => {});
   const pending = plugin.testConnection();
   await new Promise<void>((resolve) => setImmediate(resolve));
   context.mock.timers.tick(30_000);
   await pending;
   assert.equal(plugin.checkingConnection, false);
-  assert.deepEqual(notices, [plugin.connectionResult]);
-  assert.match(plugin.connectionResult, /timed out/i);
+  assert.equal(plugin.connectionResult?.kind, 'error');
+  assert.match(plugin.connectionResult?.message ?? '', /timed out/i);
   plugin.onunload();
 });

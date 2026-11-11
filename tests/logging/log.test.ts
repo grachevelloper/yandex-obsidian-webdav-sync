@@ -58,11 +58,21 @@ test('retains only the latest ten run logs and rejects corrupted saved data', as
   await assert.rejects(repository.latest(), /Invalid sync log/);
 });
 
-test('bounds in-memory diagnostic events', () => {
+test('bounds diagnostics while retaining recovery records after the log fills', async () => {
+  const { repository } = storage();
   const log = new SyncLog();
   for (let index = 0; index < 2100; index++) log.record('info', 'Reading file');
   assert.equal(log.data.events.length, 2000);
   assert.equal(log.data.droppedEvents, 100);
+
+  const recovery = { path: 'note.md', side: 'remote', recoveryHash: 'a'.repeat(64) };
+  log.record('info', 'Saved original file in local recovery', recovery);
+  log.record('info', 'Uploaded file');
+  await repository.save(log.data);
+  const restored = await repository.latest();
+  assert.deepEqual(restored?.events.at(-1)?.details, recovery);
+  assert.equal(restored?.events.length, 2001);
+  assert.equal(restored?.droppedEvents, 101);
 });
 
 test('rejects malformed metadata, events and sync results when loading logs', async () => {

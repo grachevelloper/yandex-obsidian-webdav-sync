@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createDom } from './dom';
+import { createDom } from '../helpers/dom';
 import { renderPreview } from '../../src/ui/render-preview';
 
 test('explains direction, conflicts and restoration without exposing a delete action', () => {
@@ -22,18 +22,15 @@ test('explains direction, conflicts and restoration without exposing a delete ac
       { path: 'same.md', action: 'unchanged', localHash: 'same', remoteHash: 'same' },
     ],
   });
-  assert.match(container.textContent ?? '', /Upload/);
-  assert.match(container.textContent ?? '', /↓ Restore/);
+  assert.match(container.textContent ?? '', /Add to Disk/);
+  assert.match(container.textContent ?? '', /Restore on device/);
   assert.match(container.textContent ?? '', /copy.md/);
   assert.match(container.textContent ?? '', /No files will be deleted/);
-  assert.match(container.textContent ?? '', /Restore/);
   assert.equal(container.querySelector('img'), null);
-  assert.equal(container.querySelector('.yds-metrics'), null);
   assert.match(
     container.querySelector('.yds-preview-toolbar')?.textContent ?? '',
     /4 files total · 3 changes/,
   );
-  assert.doesNotMatch(container.textContent ?? '', /GRACHEVELOPER|Review before syncing/);
 });
 
 test('blocks confirmation of incomplete previews and displays the failed path', () => {

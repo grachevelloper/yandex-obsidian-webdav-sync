@@ -3,7 +3,8 @@ import { test } from 'node:test';
 import path from 'node:path';
 import type { SettingDefinition } from 'obsidian';
 import { build } from 'esbuild';
-import { createDom } from '../ui/dom';
+import type WebDavSync from '../../src/main';
+import { createDom } from '../helpers/dom';
 import { loadPluginData, scopeFor, validateSettings } from '../../src/settings/data';
 
 test('loads defaults without sharing the state map', () => {
@@ -148,14 +149,14 @@ test('state and cache dictionaries retain special filenames as own keys', () => 
 const settingsBundle = await build({
   stdin: {
     contents: `export { SyncSettingsTab } from './src/settings/tab';
-      export { hostApi } from './tests/ui/obsidian-host.mjs';`,
+      export { hostApi } from './tests/helpers/obsidian-host.mjs';`,
     resolveDir: process.cwd(),
   },
   bundle: true,
   write: false,
   platform: 'node',
   format: 'esm',
-  alias: { obsidian: path.resolve('tests/ui/obsidian-host.mjs') },
+  alias: { obsidian: path.resolve('tests/helpers/obsidian-host.mjs') },
 });
 const settingsOutput = settingsBundle.outputFiles[0];
 assert.ok(settingsOutput);
@@ -171,7 +172,7 @@ function settingsFixture() {
     data: loadPluginData(null),
     running: false,
     checkingConnection: false,
-    connectionResult: undefined as string | undefined,
+    connectionResult: undefined as WebDavSync['connectionResult'],
     updateSettings: async (patch: object) => {
       Object.assign(plugin.data.settings, patch);
     },
@@ -251,13 +252,34 @@ test('legacy settings save values, validate the interval and reflect sync activi
   tab.refreshActivity();
   assert.equal(button('View progress')?.disabled, false);
   plugin.running = false;
-  plugin.connectionResult = 'Connected';
+  plugin.connectionResult = { kind: 'success', message: 'Login and folder access are valid.' };
   tab.refreshActivity();
   assert.ok(inputs.every((input) => !input.disabled));
   assert.match(tab.containerEl.textContent, /Connected/);
   tab.refresh();
   assert.equal(tab.containerEl.querySelectorAll('input').length, 4);
   assert.equal(tab.containerEl.querySelector('input')?.value, 'updated-user');
+});
+
+test('settings announce checking, success and failure in a persistent status region', () => {
+  const { plugin, tab } = settingsFixture();
+  tab.display();
+  const status = tab.containerEl.querySelector('[role="status"]');
+  assert.ok(status);
+
+  plugin.checkingConnection = true;
+  tab.refreshActivity();
+  assert.match(status.textContent ?? '', /Checking connection/);
+
+  plugin.checkingConnection = false;
+  plugin.connectionResult = { kind: 'success', message: 'Login and folder access are valid.' };
+  tab.refreshActivity();
+  assert.match(status.textContent ?? '', /Connected.*Login and folder access are valid/);
+
+  plugin.connectionResult = { kind: 'error', message: 'HTTP 401' };
+  tab.refreshActivity();
+  assert.match(status.textContent ?? '', /Connection failed.*HTTP 401/);
+  assert.doesNotMatch(status.textContent ?? '', /Connected/);
 });
 
 test('modern settings use host updates and release activity callbacks when rows are removed', () => {

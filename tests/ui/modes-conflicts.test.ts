@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import path from 'node:path';
 import { build } from 'esbuild';
-import { createDom } from './dom';
+import { createDom } from '../helpers/dom';
 import { snapshot } from '../../src/sync/snapshot';
 import { SyncLog } from '../../src/logging/log';
 import type { PlanEntry, SyncPlan } from '../../src/sync/types';
@@ -23,7 +23,7 @@ async function loadModule(file: string) {
     write: false,
     platform: 'node',
     format: 'esm',
-    alias: { obsidian: path.resolve('tests/ui/obsidian-host.mjs') },
+    alias: { obsidian: path.resolve('tests/helpers/obsidian-host.mjs') },
   });
   const output = bundle.outputFiles[0];
   assert.ok(output);
@@ -47,8 +47,11 @@ async function fixture(
   bytes = false,
   action: PlanEntry['action'] = 'conflict',
   side: 'both' | 'local' | 'remote' = 'both',
+  desktop = false,
 ) {
   const dom = createDom();
+  if (desktop)
+    Object.defineProperty(dom.window, 'matchMedia', { value: () => ({ matches: true }) });
   const local = await snapshot(
     bytes ? new Uint8Array([0, 255]).buffer : new TextEncoder().encode('# Trip\n09:00').buffer,
   );
@@ -67,6 +70,8 @@ async function fixture(
       },
     ],
   };
+  const first = plan.entries[0];
+  if (desktop && first) plan.entries.push({ ...first, path: 'second.md' });
   const window = new SyncWindow(
     { document: dom.window.document },
     new SyncLog().data,
@@ -80,6 +85,52 @@ async function fixture(
   const decision = window.confirm(plan, new AbortController().signal);
   return { window, plan, decision, dom };
 }
+
+test('reviews files beside the desktop list and protects an unsaved edit when switching', async () => {
+  const { window, plan, decision, dom } = await fixture(
+    'first.md',
+    false,
+    'download',
+    'both',
+    true,
+  );
+  const document = dom.window.document;
+  try {
+    const list = document.querySelector<HTMLElement>('.yds-preview-list');
+    assert.ok(list);
+    list.scrollTop = 50;
+    const detail = document.querySelector<HTMLElement>('.yds-preview-detail');
+    assert.ok(detail);
+    button(list, 'first.md').click();
+    await flush();
+    assert.equal(window.title, 'Sync preview');
+    const editor = detail.querySelector('textarea');
+    assert.ok(editor);
+    editor.value = 'Unsaved edit';
+    editor.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+
+    button(list, 'second.md').click();
+    button(window.contentEl, 'Confirm sync').click();
+    assert.equal(detail.querySelector('textarea')?.value, 'Unsaved edit');
+    assert.match(detail.textContent ?? '', /Save your choice or close the file/);
+
+    button(detail, 'Apply to preview').click();
+    assert.deepEqual(plan.entries[0]?.resolution, { kind: 'text', text: 'Unsaved edit' });
+    const refreshed = document.querySelector<HTMLElement>('.yds-preview-list');
+    assert.ok(refreshed);
+    assert.equal(refreshed.scrollTop, 50);
+    assert.equal(button(refreshed, 'first.md').getAttribute('aria-current'), 'true');
+    button(refreshed, 'second.md').click();
+    await flush();
+    assert.equal(button(refreshed, 'second.md').getAttribute('aria-current'), 'true');
+    assert.match(document.querySelector('.yds-preview-detail')?.textContent ?? '', /second.md/);
+
+    button(window.contentEl, 'Confirm sync').click();
+    assert.equal(await decision, true);
+  } finally {
+    window.close();
+  }
+});
 
 test('the start menu returns a mode only after a deliberate choice and closes safely on cancellation', async () => {
   for (const mode of ['two-way', 'device-wins', 'cloud-wins']) {
@@ -284,7 +335,7 @@ test('Russian mode menu and file editor use translated controls with unchanged m
   setWindowLanguage('ru');
   const { window, decision } = await fixture();
   try {
-    assert.equal(window.title, 'Предпросмотр синхронизации');
+    assert.equal(window.title, 'Проверка изменений');
     button(window.contentEl, 'note.md').click();
     await flush();
     assert.equal(window.title, 'Просмотр файла');
@@ -296,6 +347,80 @@ test('Russian mode menu and file editor use translated controls with unchanged m
     setWindowLanguage('en');
   }
   assert.equal(await decision, false);
+});
+
+test('choosing a disputed section retains the already combined edits', async () => {
+  const { window, plan, dom } = await fixture();
+  try {
+    const entry = plan.entries[0];
+    assert.ok(entry);
+    entry.merge = [
+      { text: '# New title\n\n' },
+      { local: '09:00\n', remote: '10:00\n', base: '08:00\n' },
+      { text: '\nDisk introduction\n' },
+    ];
+    button(window.contentEl, 'note.md').click();
+    await flush();
+    assert.equal(button(window.contentEl, 'Apply to preview').disabled, true);
+    button(window.contentEl, 'Use Disk').click();
+    const result = window.contentEl.querySelector('textarea');
+    assert.ok(result);
+    assert.equal(result.value, '# New title\n\n10:00\n\nDisk introduction\n');
+    button(window.contentEl, 'Apply to preview').click();
+    assert.deepEqual(entry.resolution, { kind: 'text', text: result.value });
+    assert.ok(dom.window.document.querySelector('.yds-preview-table'));
+  } finally {
+    window.close();
+  }
+});
+
+test('shows the destination after the user changes a proposed download to the device version', async () => {
+  const { window, plan } = await fixture('incoming.md', false, 'download');
+  try {
+    button(window.contentEl, 'incoming.md').click();
+    await flush();
+    button(window.contentEl, 'Use local').click();
+    button(window.contentEl, 'Apply to preview').click();
+    assert.deepEqual(plan.entries[0]?.resolution, { kind: 'local' });
+    assert.match(window.contentEl.textContent, /Update on Disk/);
+  } finally {
+    window.close();
+  }
+});
+
+test('editing the title stages a rename and rejects a duplicate name before confirmation', async () => {
+  const { window, plan, dom } = await fixture('incoming.md', false, 'download', 'remote');
+  const entry = plan.entries[0];
+  assert.ok(entry);
+  plan.entries.push({
+    path: 'existing.md',
+    action: 'unchanged',
+    localHash: 'same',
+    remoteHash: 'same',
+  });
+  try {
+    button(window.contentEl, 'incoming.md').click();
+    await flush();
+    button(window.contentEl, 'incoming.md').click();
+    const input = dom.window.document.querySelector<HTMLInputElement>('.yds-filename-field input');
+    assert.ok(input);
+    assert.equal(input.value, 'incoming');
+    assert.equal(input.selectionEnd, 'incoming'.length);
+
+    input.value = 'existing';
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    assert.equal(button(window.contentEl, 'Apply to preview').disabled, true);
+    assert.match(window.contentEl.textContent, /already in use/);
+    input.value = 'new name';
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    assert.equal(entry.renameTo, undefined);
+    button(window.contentEl, 'Apply to preview').click();
+    assert.equal(entry.renameTo, 'new name.md');
+    assert.match(window.contentEl.textContent, /New path: new name.md/);
+  } finally {
+    window.close();
+  }
 });
 
 test('deletion from the file editor is visible in the preview and can be undone by skipping', async () => {

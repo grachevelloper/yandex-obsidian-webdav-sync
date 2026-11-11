@@ -1,6 +1,7 @@
 import { t } from '../i18n';
 import type { LogSink } from '../logging/log';
 import { preserveVersion } from './recovery';
+import { forgetBaseline } from './baseline';
 import type { PlanEntry, Snapshot, SyncResult, SyncState, SyncStore } from './types';
 
 export async function applyDeletion(
@@ -45,9 +46,10 @@ export async function applyDeletion(
     else result.deletedRemote = (result.deletedRemote ?? 0) + 1;
     log('info', deletingLocal ? t('Deleted device file') : t('Deleted cloud file'), {
       path: entry.path,
+      side: deletingLocal ? 'local' : 'remote',
       recoveryHash: victim.hash,
     });
   }
 
-  delete state.hashes[entry.path];
+  await forgetBaseline(local, state, entry.path, log);
 }

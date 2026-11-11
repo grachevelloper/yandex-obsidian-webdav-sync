@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import path from 'node:path';
 import { build } from 'esbuild';
-import { createDom } from './dom';
+import { createDom } from '../helpers/dom';
 import { SyncLog } from '../../src/logging/log';
 
 const bundle = await build({
@@ -11,7 +11,7 @@ const bundle = await build({
   write: false,
   platform: 'node',
   format: 'esm',
-  alias: { obsidian: path.resolve('tests/ui/obsidian-host.mjs') },
+  alias: { obsidian: path.resolve('tests/helpers/obsidian-host.mjs') },
 });
 const output = bundle.outputFiles[0];
 assert.ok(output);

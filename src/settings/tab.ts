@@ -1,8 +1,14 @@
-import { t, isLanguagePreference } from '../i18n';
+import { t, isLanguagePreference, type MessageKey } from '../i18n';
 import { PluginSettingTab, requireApiVersion, Setting } from 'obsidian';
 
 import { isRequestIntervalMs, MAX_CONCURRENT_REQUESTS } from '../shared/transfer-limits';
 import type WebDavSync from '../main';
+
+const connectionTitles = {
+  success: 'Connected',
+  warning: 'Folder not found',
+  error: 'Connection failed',
+} satisfies Record<string, MessageKey>;
 
 export class SyncSettingsTab extends PluginSettingTab {
   private readonly activityUpdates = new Set<() => void>();
@@ -200,18 +206,29 @@ export class SyncSettingsTab extends PluginSettingTab {
           'Check login, app password and folder access without scanning or transferring notes.',
         ),
         render: (setting: Setting) => {
+          const status = setting.descEl.createDiv();
+          status.setAttribute('role', 'status');
           let cleanup = () => {};
           setting.addButton((button) => {
             button.onClick(() => {
               void this.syncPlugin.testConnection();
             });
             cleanup = this.watchActivity(() => {
-              setting.setDesc(
-                this.syncPlugin.connectionResult ??
-                  t(
-                    'Check login, app password and folder access without scanning or transferring notes.',
-                  ),
-              );
+              status.replaceChildren();
+              const result = this.syncPlugin.connectionResult;
+              if (this.syncPlugin.checkingConnection) {
+                status.createDiv({
+                  cls: 'yds-connection-message',
+                  text: t('Checking connection…'),
+                });
+              } else if (result) {
+                const message = status.createDiv({
+                  cls: ['yds-connection-message', `yds-connection-${result.kind}`],
+                });
+                message.createEl('strong', { text: t(connectionTitles[result.kind]) });
+                message.createDiv({ text: result.message });
+              }
+
               button
                 .setDisabled(this.busy)
                 .setButtonText(

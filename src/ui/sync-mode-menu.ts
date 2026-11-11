@@ -49,11 +49,16 @@ export class SyncModeMenu extends Modal {
       },
     ];
     for (const option of options) {
-      const button = this.contentEl.createEl('button', { cls: 'yds-mode-option' });
+      const choice = this.contentEl.createDiv();
+      const button = choice.createEl('button', { cls: 'yds-mode-option', text: option.label });
       button.type = 'button';
       button.dataset.syncMode = option.mode;
-      button.createEl('strong', { text: option.label });
-      button.createSpan({ text: option.description });
+      const description = choice.createEl('p', {
+        cls: 'yds-mode-description',
+        text: option.description,
+      });
+      description.id = `yds-mode-${option.mode}-description`;
+      button.setAttribute('aria-describedby', description.id);
       button.addEventListener('click', () => {
         this.settle(option.mode);
         this.close();

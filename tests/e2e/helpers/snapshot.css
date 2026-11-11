@@ -1,0 +1,9 @@
+.yds-progress-elapsed,
+.yds-meta {
+  visibility: hidden;
+}
+
+/* Cropped modal screenshots include the background through their rounded corners. */
+.modal-container:has(.yds-sync-modal, .yds-mode-modal) {
+  background: var(--background-primary);
+}

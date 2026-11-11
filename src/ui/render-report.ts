@@ -8,6 +8,7 @@ export function renderReport(
   log: RunLog,
   openLog: () => void,
   progress?: SyncProgress,
+  restoreCopy?: (path: string, hash: string) => Promise<string>,
 ): void {
   const fragment = container.ownerDocument.adoptNode(createFragment());
   const create = <K extends keyof HTMLElementTagNameMap>(
@@ -20,6 +21,8 @@ export function renderReport(
 
   container.replaceChildren();
   container.classList.add('yds-report');
+  const body = create('div', 'yds-report-body');
+  container.append(body);
   const result = log.result;
   const needsAttention =
     log.outcome === 'failed' || log.outcome === 'partial' || Boolean(result?.conflicts.length);
@@ -35,15 +38,15 @@ export function renderReport(
   const heading = create('div', 'yds-heading');
   heading.append(create('h2', 'yds-title', headline));
   header.append(heading);
-  container.append(header);
+  body.append(header);
 
   const date = new Date(log.finishedAt ?? log.startedAt).toLocaleString(getLocale(), {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
-  container.append(create('p', 'yds-meta', date));
+  body.append(create('p', 'yds-meta', date));
   if (log.outcome === 'cancelled')
-    container.append(
+    body.append(
       create(
         'p',
         'yds-description',
@@ -51,7 +54,7 @@ export function renderReport(
       ),
     );
   if (progress?.total !== undefined)
-    container.append(
+    body.append(
       create(
         'p',
         'yds-progress-count',
@@ -61,9 +64,32 @@ export function renderReport(
   const metrics = create('div', 'yds-metrics');
   metrics.hidden = !result;
   metrics.setAttribute('aria-label', t('Sync totals'));
+  const hasBreakdown =
+    result &&
+    [
+      result.added,
+      result.updated,
+      result.restored,
+      result.merged,
+      result.moved,
+      result.renamed,
+    ].some((count) => count !== undefined);
+  const breakdown = [
+    [t('Added'), result?.added ?? 0, false],
+    [t('Updated'), result?.updated ?? 0, false],
+    [t('Restored'), result?.restored ?? 0, false],
+    [t('Edits merged'), result?.merged ?? 0, false],
+    [t('Moved'), result?.moved ?? 0, false],
+    [t('Renamed'), result?.renamed ?? 0, false],
+  ] as const;
+  const transfers = hasBreakdown
+    ? breakdown.filter(([, count]) => count > 0)
+    : ([
+        [t('Uploaded'), result?.uploaded ?? 0, false],
+        [t('Downloaded'), result?.downloaded ?? 0, false],
+      ] as const);
   for (const [label, value, attention] of [
-    [t('Uploaded'), result?.uploaded ?? 0, false],
-    [t('Downloaded'), result?.downloaded ?? 0, false],
+    ...transfers,
     [t('Edited'), result?.edited ?? 0, false],
     [t('Resolved'), result?.resolved ?? 0, false],
     [t('Deleted locally'), result?.deletedLocal ?? 0, true],
@@ -87,9 +113,9 @@ export function renderReport(
     );
     metrics.append(card);
   }
-  container.append(metrics);
+  body.append(metrics);
 
-  if (log.failure) container.append(create('p', 'yds-failure', log.failure));
+  if (log.failure) body.append(create('p', 'yds-failure', log.failure));
   if (result?.conflicts.length) {
     const section = create('section', 'yds-section');
     section.append(
@@ -114,7 +140,7 @@ export function renderReport(
       }
       section.append(pair);
     }
-    container.append(section);
+    body.append(section);
   }
 
   for (const [title, items, expanded] of [
@@ -128,7 +154,54 @@ export function renderReport(
     const list = create('ul', 'yds-issues');
     for (const item of items) list.append(create('li', '', item));
     details.append(list);
-    container.append(details);
+    body.append(details);
+  }
+
+  if (restoreCopy) {
+    const recovery = create('details', 'yds-details');
+    recovery.append(create('summary', 'yds-section-title', t('Previous versions')));
+    const versions = new Set<string>();
+    for (const { details } of log.events) {
+      const path = details?.path;
+      const hash = details?.recoveryHash;
+      const side = details?.side;
+      if (typeof path !== 'string' || typeof hash !== 'string') continue;
+      const key = JSON.stringify([path, hash]);
+      if (versions.has(key)) continue;
+      versions.add(key);
+
+      const row = create('div', 'yds-recovery-row');
+      const info = create('div', '');
+      const location =
+        side === 'local' ? t('Local version') : side === 'remote' ? t('Cloud version') : '';
+      info.append(create('div', 'yds-path', path), create('div', 'yds-description', location));
+      const action = create('button', '', t('Restore a copy'));
+      action.type = 'button';
+      action.setAttribute('aria-label', t('Restore a copy of {0}', { '0': path }));
+      const status = create('span', 'yds-description');
+      status.setAttribute('aria-live', 'polite');
+      action.addEventListener('click', () => {
+        action.disabled = true;
+        void restoreCopy(path, hash).then(
+          (target) => {
+            status.textContent = t('Copy saved on this device: {0}', { '0': target });
+          },
+          (error: unknown) => {
+            status.textContent =
+              error instanceof Error ? error.message : t('The previous version is unavailable.');
+            action.disabled = false;
+          },
+        );
+      });
+      row.append(info, action, status);
+      recovery.append(row);
+    }
+    if (versions.size) {
+      recovery.append(
+        create('p', 'yds-description', t('Restoring creates a separate file on this device.')),
+      );
+      body.append(recovery);
+    }
   }
 
   const footer = create('div', 'yds-footer');
@@ -145,6 +218,8 @@ export function renderReport(
 function reportHeadline(log: RunLog, needsAttention: boolean): string {
   if (log.outcome === 'cancelled') return t('Sync cancelled');
   if (log.outcome === 'failed') return t('Sync stopped');
+  if (log.result?.skipped.length && !log.result.errors.length && !log.result.conflicts.length)
+    return t('Sync finished with skipped files');
   if (needsAttention) return t('A few things to review');
   if (
     log.result &&
@@ -152,7 +227,9 @@ function reportHeadline(log: RunLog, needsAttention: boolean): string {
       log.result.downloaded +
       (log.result.deletedLocal ?? 0) +
       (log.result.deletedRemote ?? 0) +
-      (log.result.resolved ?? 0) ===
+      (log.result.resolved ?? 0) +
+      (log.result.moved ?? 0) +
+      (log.result.renamed ?? 0) ===
       0
   )
     return t('Everything is up to date');

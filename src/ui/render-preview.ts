@@ -1,12 +1,25 @@
 import { t } from '../i18n';
 
 import type { PlanEntry, SyncPlan } from '../sync/types';
+import { relocationTarget } from '../sync/relocation';
 import { fileTree, type FileFolder } from './file-tree';
+
+export interface PreviewListState {
+  collapsed: Set<string>;
+  showUnchanged: boolean;
+}
 
 export function renderPreview(
   container: HTMLElement,
   plan: SyncPlan,
   openFile?: (entry: PlanEntry) => void,
+  {
+    split = false,
+    listState = { collapsed: new Set(), showUnchanged: false },
+  }: {
+    split?: boolean;
+    listState?: PreviewListState;
+  } = {},
 ) {
   const fragment = container.ownerDocument.adoptNode(createFragment());
   const create = <K extends keyof HTMLElementTagNameMap>(
@@ -25,7 +38,10 @@ export function renderPreview(
   const changes = plan.entries
     .filter((entry) => entry.resolution?.kind !== 'skip')
     .filter(
-      ({ action, resolution }) =>
+      ({ action, resolution, renameTo }) =>
+        !!renameTo ||
+        action === 'move' ||
+        action === 'merge' ||
         action === 'upload' ||
         action === 'download' ||
         action === 'conflict' ||
@@ -44,7 +60,10 @@ export function renderPreview(
     (entry) => entry.resolution?.kind === 'delete',
   ).length;
   const inactive = plan.entries.filter(
-    ({ action, resolution }) => !resolution && (action === 'unchanged' || action === 'missing'),
+    (entry) =>
+      !entry.resolution &&
+      !entry.renameTo &&
+      (entry.action === 'unchanged' || entry.action === 'missing'),
   ).length;
   const toolbar = create('div', 'yds-preview-toolbar');
   toolbar.append(
@@ -60,6 +79,7 @@ export function renderPreview(
   );
   const showUnchanged = create('input', '');
   showUnchanged.type = 'checkbox';
+  showUnchanged.checked = listState.showUnchanged;
   if (inactive) {
     const label = create('label', 'yds-preview-filter');
     label.append(showUnchanged, create('span', '', t('Show unchanged ({0})', { '0': inactive })));
@@ -81,13 +101,34 @@ export function renderPreview(
   const body = create('tbody', '');
   table.append(header, body);
   list.append(table);
-  container.append(list);
-  const collapsed = new Set<string>();
+  const detail = split ? create('section', 'yds-preview-detail') : undefined;
+  if (detail) {
+    detail.tabIndex = -1;
+    detail.setAttribute('aria-label', t('Selected file'));
+    const workspace = create('div', 'yds-preview-workspace');
+    workspace.append(list, detail);
+    container.append(workspace);
+  } else container.append(list);
+
+  const { collapsed } = listState;
+  const fileButtons = new Map<PlanEntry, HTMLElement>();
+  let selected: PlanEntry | undefined;
+
+  function selectFile(entry?: PlanEntry): void {
+    if (selected) fileButtons.get(selected)?.removeAttribute('aria-current');
+    selected = entry;
+    if (entry) fileButtons.get(entry)?.setAttribute('aria-current', 'true');
+  }
 
   function renderFiles(): void {
     body.replaceChildren();
+    fileButtons.clear();
     const entries = plan.entries.filter(
-      ({ action }) => showUnchanged.checked || (action !== 'unchanged' && action !== 'missing'),
+      (entry) =>
+        showUnchanged.checked ||
+        !!entry.renameTo ||
+        !!entry.resolution ||
+        (entry.action !== 'unchanged' && entry.action !== 'missing'),
     );
     const rows: { element: HTMLTableRowElement; parents: string[] }[] = [];
     const updateVisibility = () => {
@@ -132,10 +173,8 @@ export function renderPreview(
       }
 
       for (const entry of [...parent.files].sort((a, b) => a.path.localeCompare(b.path))) {
-        const row = create(
-          'tr',
-          `yds-preview-file yds-action-${entry.resolution?.kind === 'delete' ? 'delete-local' : entry.action}`,
-        );
+        const actionStyle = entry.resolution?.kind ?? (entry.renameTo ? 'rename' : entry.action);
+        const row = create('tr', `yds-preview-file yds-action-${actionStyle}`);
         row.style.setProperty('--yds-depth', String(Math.min(depth, 6)));
         const name = create('td', 'yds-preview-file-cell');
         const filename = create(
@@ -147,6 +186,7 @@ export function renderPreview(
           filename.classList.add('yds-preview-open');
           filename.setAttribute('type', 'button');
           filename.addEventListener('click', () => openFile(entry));
+          fileButtons.set(entry, filename);
         }
         filename.title = entry.path;
         name.append(filename);
@@ -159,8 +199,17 @@ export function renderPreview(
           name.append(copy);
         }
         if (entry.message) name.append(create('span', 'yds-preview-message', entry.message));
-        const action = create('td', 'yds-preview-action', actionLabel(entry));
-        action.title = describeEntry(entry);
+        const label = actionLabel(entry);
+        const target =
+          entry.resolution?.kind === 'skip' || entry.resolution?.kind === 'delete'
+            ? undefined
+            : relocationTarget(entry);
+        if (target)
+          name.append(create('span', 'yds-preview-target', t('New path: {0}', { '0': target })));
+        const inline = create('span', 'yds-preview-action yds-preview-action-inline', label);
+        const action = create('td', 'yds-preview-action', label);
+        inline.title = action.title = describeEntry(entry);
+        name.append(inline);
         row.append(name, action);
         body.append(row);
         rows.push({ element: row, parents });
@@ -176,9 +225,13 @@ export function renderPreview(
       body.append(row);
     }
     updateVisibility();
+    selectFile(selected);
   }
 
-  showUnchanged.addEventListener('change', renderFiles);
+  showUnchanged.addEventListener('change', () => {
+    listState.showUnchanged = showUnchanged.checked;
+    renderFiles();
+  });
   renderFiles();
   if (errors)
     container.append(
@@ -190,7 +243,7 @@ export function renderPreview(
     );
   const mirror = plan.mode === 'device-wins' || plan.mode === 'cloud-wins';
   const reviewed = plan.entries.some(
-    (entry) => entry.resolution && entry.resolution.kind !== 'skip',
+    (entry) => !!entry.renameTo || (entry.resolution && entry.resolution.kind !== 'skip'),
   );
   const direction =
     plan.mode === 'device-wins'
@@ -206,9 +259,9 @@ export function renderPreview(
             (reviewed
               ? t('Reviewed files are saved on both sides; the source may change.')
               : t('The source stays unchanged.'))
-        : reviewedDeletions
-          ? t('↑ Yandex Disk · ↓ This device')
-          : t('↑ Yandex Disk · ↓ This device · No files will be deleted.'),
+        : reviewedDeletions || plan.entries.some((entry) => relocationTarget(entry))
+          ? t('Files will change after you confirm.')
+          : t('No files will be deleted.'),
     ),
   );
   if (reviewedDeletions)
@@ -234,20 +287,34 @@ export function renderPreview(
   const actions = create('div', 'yds-preview-actions');
   container.append(actions);
 
-  return { actions, canConfirm: errors === 0 && unresolved === 0, changes, unresolved };
+  return {
+    actions,
+    list,
+    detail,
+    selectFile,
+    canConfirm: errors === 0 && unresolved === 0,
+    changes,
+    unresolved,
+  };
 }
 
 function actionLabel(entry: PlanEntry): string {
   if (entry.resolution?.kind === 'delete') return t('Delete from both sides');
   if (entry.resolution?.kind === 'skip') return t('Skipped');
-  if (entry.resolution && entry.action !== 'conflict') return t('⇄ Reviewed');
+  if (entry.renameTo) return t('Save with new name');
+  if (entry.resolution?.kind === 'text') return t('Save result on Disk and device');
+  if (entry.resolution?.kind === 'local') return transferLabel('upload', entry);
+  if (entry.resolution?.kind === 'remote') return transferLabel('download', entry);
   switch (entry.action) {
     case 'upload':
-      return entry.baseline && !entry.remoteHash ? t('↑ Restore') : t('↑ Upload');
     case 'download':
-      return entry.baseline && !entry.localHash ? t('↓ Restore') : t('↓ Download');
+      return transferLabel(entry.action, entry);
     case 'conflict':
-      return entry.resolution ? t('⇄ Resolved') : t('⇄ Resolve');
+      return t('Choose a result');
+    case 'merge':
+      return t('Merge edits');
+    case 'move':
+      return entry.localHash ? t('Move on device') : t('Move on Disk');
     case 'delete-local':
       return t('Delete local');
     case 'delete-remote':
@@ -263,7 +330,27 @@ function actionLabel(entry: PlanEntry): string {
   }
 }
 
+function transferLabel(action: 'upload' | 'download', entry: PlanEntry): string {
+  if (action === 'upload')
+    return entry.remoteHash
+      ? t('Update on Disk')
+      : entry.baseline
+        ? t('Restore on Disk')
+        : t('Add to Disk');
+  return entry.localHash
+    ? t('Update on device')
+    : entry.baseline
+      ? t('Restore on device')
+      : t('Add to device');
+}
+
 function describeEntry(entry: PlanEntry): string {
+  if (entry.renameTo && entry.resolution?.kind !== 'skip' && entry.resolution?.kind !== 'delete')
+    return t('Save the file under the new name on Disk and device.');
+  if (entry.action === 'move' && entry.resolution?.kind !== 'skip')
+    return t('The file is already at the new path on one side. Confirm to move it on the other.');
+  if (entry.action === 'merge' && !entry.resolution)
+    return t('Save the combined edits on Disk and device.');
   if (entry.resolution?.kind === 'delete')
     return t('After confirmation, delete existing versions from the device and Yandex Disk.');
   if (entry.resolution?.kind === 'skip')
