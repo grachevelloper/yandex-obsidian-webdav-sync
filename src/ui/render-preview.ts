@@ -89,7 +89,6 @@ export function renderPreview(
 
   const list = create('div', 'yds-preview-list');
   const table = create('table', 'yds-preview-table');
-  table.setAttribute('aria-label', t('Files in the sync preview'));
   const header = create('thead', '');
   const columns = create('tr', '');
   for (const title of [t('File'), t('Action')]) {
@@ -101,10 +100,9 @@ export function renderPreview(
   const body = create('tbody', '');
   table.append(header, body);
   list.append(table);
-  const detail = split ? create('section', 'yds-preview-detail') : undefined;
+  const detail = split ? create('div', 'yds-preview-detail') : undefined;
   if (detail) {
     detail.tabIndex = -1;
-    detail.setAttribute('aria-label', t('Selected file'));
     const workspace = create('div', 'yds-preview-workspace');
     workspace.append(list, detail);
     container.append(workspace);
@@ -145,7 +143,6 @@ export function renderPreview(
         cell.colSpan = 2;
         const button = create('button', 'yds-folder-toggle');
         button.type = 'button';
-        button.title = folder.path;
         const chevron = create('span', 'yds-tree-chevron');
         chevron.setAttribute('aria-hidden', 'true');
         const updateButton = () => {
@@ -185,13 +182,13 @@ export function renderPreview(
         if (openFile) {
           filename.classList.add('yds-preview-open');
           filename.setAttribute('type', 'button');
-          filename.addEventListener('click', () => openFile(entry));
+          row.addEventListener('click', () => openFile(entry));
           fileButtons.set(entry, filename);
         }
-        filename.title = entry.path;
         name.append(filename);
         if (entry.copyPath && !entry.resolution && !plan.mode) {
           const copy = create('details', 'yds-preview-copy');
+          copy.addEventListener('click', (event) => event.stopPropagation());
           copy.append(
             create('summary', '', t('Conflict copy')),
             create('code', '', entry.copyPath),
@@ -208,7 +205,6 @@ export function renderPreview(
           name.append(create('span', 'yds-preview-target', t('New path: {0}', { '0': target })));
         const inline = create('span', 'yds-preview-action yds-preview-action-inline', label);
         const action = create('td', 'yds-preview-action', label);
-        inline.title = action.title = describeEntry(entry);
         name.append(inline);
         row.append(name, action);
         body.append(row);
@@ -342,41 +338,4 @@ function transferLabel(action: 'upload' | 'download', entry: PlanEntry): string 
     : entry.baseline
       ? t('Restore on device')
       : t('Add to device');
-}
-
-function describeEntry(entry: PlanEntry): string {
-  if (entry.renameTo && entry.resolution?.kind !== 'skip' && entry.resolution?.kind !== 'delete')
-    return t('Save the file under the new name on Disk and device.');
-  if (entry.action === 'move' && entry.resolution?.kind !== 'skip')
-    return t('The file is already at the new path on one side. Confirm to move it on the other.');
-  if (entry.action === 'merge' && !entry.resolution)
-    return t('Save the combined edits on Disk and device.');
-  if (entry.resolution?.kind === 'delete')
-    return t('After confirmation, delete existing versions from the device and Yandex Disk.');
-  if (entry.resolution?.kind === 'skip')
-    return t('Skip this file for this run. Neither side is changed.');
-  if (entry.resolution?.kind === 'text') return t('Save the edited result on both sides.');
-  if (entry.resolution?.kind === 'local') return t('Keep this device’s version on both sides.');
-  if (entry.resolution?.kind === 'remote') return t('Keep the Yandex Disk version on both sides.');
-  if (entry.action === 'conflict')
-    return entry.resolution
-      ? t('Apply the approved result to both sides, or leave a skipped conflict unchanged.')
-      : t('Compare both versions and choose or edit the result before confirming.');
-  if (entry.action === 'delete-local')
-    return t('Remove the device-only file after saving a local recovery copy.');
-  if (entry.action === 'delete-remote')
-    return t('Remove the Disk-only file after saving a local recovery copy.');
-  if (entry.action === 'upload')
-    return entry.remoteHash
-      ? t('Replace the cloud version with this device’s version.')
-      : entry.baseline
-        ? t('Restore the missing file on Yandex Disk.')
-        : t('Create this file on Yandex Disk.');
-  if (entry.action === 'download')
-    return entry.localHash
-      ? t('Replace this device’s version with the cloud version.')
-      : entry.baseline
-        ? t('Restore the missing file on this device.')
-        : t('Create this file on this device.');
-  return entry.message ?? '';
 }

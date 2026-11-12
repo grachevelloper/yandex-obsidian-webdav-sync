@@ -295,6 +295,10 @@
   padding-inline-start: calc(8px + var(--yds-depth, 0) * 14px);
 }
 
+.yds-preview-file:has(.yds-preview-open) {
+  cursor: pointer;
+}
+
 .yds-preview-table tbody tr:hover {
   background: var(--background-modifier-hover, #f4f5f7);
 }
