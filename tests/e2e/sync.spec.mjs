@@ -80,13 +80,20 @@ test('sync opens the mode menu, checks files, waits for confirmation and reports
   await expect(page.getByRole('button', { name: 'Start.md', exact: true })).toBeVisible();
   await expectScreenshot(syncModal, 'sync-preview');
 
-  await syncModal.getByRole('button', { name: 'Start.md', exact: true }).click();
+  await syncModal
+    .locator('.yds-preview-action:visible')
+    .filter({ hasText: 'Добавить на Диск' })
+    .click();
   await expect(syncModal.getByRole('button', { name: 'Сохранить выбор' })).toBeEnabled();
   if (device.mobile) {
     await expect(syncModal.locator('.yds-preview-list')).toHaveCount(0);
   } else {
     await expect(syncModal.locator('.yds-preview-list')).toBeVisible();
     await expect(syncModal.locator('.yds-preview-detail textarea')).toBeVisible();
+    await expect(syncModal.locator('.yds-preview-detail[aria-label]')).toHaveCount(0);
+    await expect(
+      syncModal.locator('.yds-preview-list [title], .yds-rename-file[title]'),
+    ).toHaveCount(0);
     await expect(confirm).toBeInViewport();
   }
   await expectScreenshot(syncModal, 'sync-file-review');

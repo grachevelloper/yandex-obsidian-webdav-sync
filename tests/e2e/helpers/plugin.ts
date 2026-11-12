@@ -307,15 +307,15 @@ export function showScenario(app: App, id: string, language: 'ru' | 'en' = 'ru')
     void window.confirm(plan, controller.signal);
     if (id.startsWith('conflict')) click(t('Resolve conflicts (') + '1)');
     if (id.startsWith('file-')) {
-      const path =
+      const name =
         id === 'file-text'
-          ? 'Заметки/Планы на неделю.md'
+          ? 'Планы на неделю.md'
           : id === 'file-image'
-            ? 'Вложения/Маршрут.png'
-            : 'Вложения/Архив.zip';
+            ? 'Маршрут.png'
+            : 'Архив.zip';
       const button = Array.from(
         window.contentEl.querySelectorAll<HTMLButtonElement>('.yds-preview-open'),
-      ).find((button) => button.title === path);
+      ).find((button) => button.textContent === name);
       if (!button) throw new Error('Fixture file button not found');
       button.click();
     }

@@ -1,5 +1,4 @@
 export const russian = {
-  'Selected file': 'Выбранный файл',
   'Select a file to review it.': 'Выберите файл в списке слева.',
   'Close file': 'Закрыть файл',
   'Save your choice or close the file to discard your edits.':
@@ -28,21 +27,14 @@ export const russian = {
   'Restore on device': 'Восстановить на устройстве',
   'Save result on Disk and device': 'Сохранить итог на Диске и устройстве',
   'Save with new name': 'Сохранить под новым именем',
-  'Save the file under the new name on Disk and device.':
-    'Сохранить файл под новым именем на Диске и устройстве.',
   'New path: {0}': 'Новый путь: {0}',
   'Choose a result': 'Выбрать итог',
   'Merge edits': 'Объединить правки',
   'Move on Disk': 'Переместить на Диске',
   'Move on device': 'Переместить на устройстве',
-  'The file is already at the new path on one side. Confirm to move it on the other.':
-    'Файл уже по новому пути на одной стороне. Подтвердите, чтобы переместить его на другой.',
-  'Save the combined edits on Disk and device.':
-    'Сохранить объединённые правки на Диске и устройстве.',
   'Files will change after you confirm.': 'Файлы изменятся после подтверждения.',
   'No files will be deleted.': 'Файлы не будут удалены.',
   'Edit file name': 'Изменить имя файла',
-  'Edit file name: {0}': 'Изменить имя файла {0}',
   'File name without extension': 'Имя файла без расширения',
   'Choose each conflicting section. Other edits are already combined.':
     'Выберите версию каждого спорного участка. Остальные правки уже объединены.',
@@ -225,7 +217,6 @@ export const russian = {
   '{0} files total · {1} changes{2}': 'Всего файлов: {0} · изменений: {1}{2}',
   ' · {0} errors': ' · ошибок: {0}',
   'Show unchanged ({0})': 'Показать неизменённые ({0})',
-  'Files in the sync preview': 'Файлы в предпросмотре синхронизации',
   'Conflict copy': 'Конфликтная копия',
   'No file changes': 'Изменений файлов нет',
   'Confirmation is disabled. Resolve the errors and prepare a new preview.':
@@ -240,8 +231,6 @@ export const russian = {
     'Файл отмечен для удаления. Чтобы отменить удаление, выберите версию файла или пропустите его.',
   'Files marked for deletion from both sides: {0}': 'К удалению с устройства и Диска: {0}',
   'Delete from both sides': 'Удалить с устройства и Диска',
-  'After confirmation, delete existing versions from the device and Yandex Disk.':
-    'После подтверждения удалить существующие версии с устройства и Яндекс Диска.',
   'Skipped files are excluded. The destination will not be an exact copy.':
     'Пропущенные файлы исключены. Получатель не будет точной копией источника.',
   '⇄ Reviewed': '⇄ Проверено',
@@ -254,29 +243,6 @@ export const russian = {
   'Delete local': 'Удалить локально',
   'Delete on Disk': 'Удалить с Диска',
   'No action': 'Нет действия',
-  'Skip this file for this run. Neither side is changed.':
-    'Пропустить файл в этом запуске. Обе стороны останутся без изменений.',
-  'Save the edited result on both sides.': 'Сохранить отредактированный итог на обеих сторонах.',
-  'Keep this device’s version on both sides.':
-    'Сохранить версию этого устройства на обеих сторонах.',
-  'Keep the Yandex Disk version on both sides.':
-    'Сохранить версию с Яндекс Диска на обеих сторонах.',
-  'Apply the approved result to both sides, or leave a skipped conflict unchanged.':
-    'Применить утверждённый результат к обеим сторонам или оставить пропущенный конфликт без изменений.',
-  'Compare both versions and choose or edit the result before confirming.':
-    'Сравните обе версии и выберите или отредактируйте результат перед подтверждением.',
-  'Remove the device-only file after saving a local recovery copy.':
-    'Удалить файл только с устройства, предварительно сохранив локальную копию восстановления.',
-  'Remove the Disk-only file after saving a local recovery copy.':
-    'Удалить файл только с Диска, предварительно сохранив локальную копию восстановления.',
-  'Replace the cloud version with this device’s version.':
-    'Заменить версию на Диске версией этого устройства.',
-  'Restore the missing file on Yandex Disk.': 'Восстановить отсутствующий файл на Яндекс Диске.',
-  'Create this file on Yandex Disk.': 'Создать этот файл на Яндекс Диске.',
-  'Replace this device’s version with the cloud version.':
-    'Заменить версию на устройстве версией с Диска.',
-  'Restore the missing file on this device.': 'Восстановить отсутствующий файл на этом устройстве.',
-  'Create this file on this device.': 'Создать этот файл на этом устройстве.',
   'Active files': 'Активные файлы',
   'Hide this window to keep working. Use Sync again to reopen it. Keep Obsidian open.':
     'Скройте окно, чтобы продолжить работу. Снова нажмите синхронизацию, чтобы вернуться. Не закрывайте Obsidian.',

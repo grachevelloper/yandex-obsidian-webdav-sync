@@ -121,8 +121,7 @@ export function renderFileReview(
       });
     });
     name.classList.add('yds-rename-file');
-    name.title = t('Edit file name');
-    name.setAttribute('aria-label', t('Edit file name: {0}', { '0': view.path }));
+    name.setAttribute('aria-description', t('Edit file name'));
     const warning = create('span', 'yds-filename-warning', rename.error);
     warning.setAttribute('role', 'alert');
     title.append(name, warning);
